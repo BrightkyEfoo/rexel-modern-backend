@@ -2,7 +2,7 @@ name: Deploy Backend to Production
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, master ]
       
   workflow_dispatch:
     inputs:
@@ -530,7 +530,7 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### 📋 Services Deployed" >> $GITHUB_STEP_SUMMARY
           echo "- 🚀 **Rexel Backend** (AdonisJS 6)" >> $GITHUB_STEP_SUMMARY
-          echo "- 🗄️  **PostgreSQL Database**" >> $GITHUB_STEP_SUMMARY
+          echo "- ��️  **PostgreSQL Database**" >> $GITHUB_STEP_SUMMARY
           echo "- 📦 **MinIO Object Storage**" >> $GITHUB_STEP_SUMMARY
           echo "- 🗃️  **Redis Cache** (optional)" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
@@ -538,4 +538,4 @@ jobs:
           echo "1. Verify API endpoints are responding correctly" >> $GITHUB_STEP_SUMMARY
           echo "2. Test file upload functionality" >> $GITHUB_STEP_SUMMARY
           echo "3. Check application logs for any issues" >> $GITHUB_STEP_SUMMARY
-          echo "4. Update frontend environment variables if needed" >> $GITHUB_STEP_SUMMARY 
+          echo "4. Update frontend environment variables if needed" >> $GITHUB_STEP_SUMMARY
