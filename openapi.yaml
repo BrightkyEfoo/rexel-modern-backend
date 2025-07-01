@@ -1,0 +1,982 @@
+openapi: 3.1.0
+info:
+  title: Rexel Modern API
+  description: API REST pour l'application e-commerce Rexel Modern
+  version: 1.0.0
+  contact:
+    name: Rexel Modern Team
+    email: contact@rexel-modern.com
+servers:
+  - url: http://localhost:3333
+    description: Serveur de développement
+  - url: https://api.rexel-modern.com
+    description: Serveur de production
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    # Modèles de base
+    Product:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: ID unique du produit
+        name:
+          type: string
+          description: Nom du produit
+        slug:
+          type: string
+          description: Slug unique pour URL
+        description:
+          type: string
+          nullable: true
+          description: Description du produit
+        shortDescription:
+          type: string
+          nullable: true
+          description: Description courte du produit
+        sku:
+          type: string
+          nullable: true
+          description: Code SKU du produit
+        price:
+          type: number
+          format: float
+          description: Prix du produit
+        salePrice:
+          type: number
+          format: float
+          nullable: true
+          description: Prix de vente (promotion)
+        stockQuantity:
+          type: integer
+          description: Quantité en stock
+        manageStock:
+          type: boolean
+          description: Gestion du stock activée
+        inStock:
+          type: boolean
+          description: Produit en stock
+        isFeatured:
+          type: boolean
+          description: Produit mis en avant
+        isActive:
+          type: boolean
+          description: Produit actif
+        categoryId:
+          type: integer
+          nullable: true
+          description: ID de la catégorie
+        brandId:
+          type: integer
+          nullable: true
+          description: ID de la marque
+        createdAt:
+          type: string
+          format: date-time
+          description: Date de création
+        updatedAt:
+          type: string
+          format: date-time
+          description: Date de modification
+        category:
+          $ref: '#/components/schemas/Category'
+        brand:
+          $ref: '#/components/schemas/Brand'
+        files:
+          type: array
+          items:
+            $ref: '#/components/schemas/File'
+
+    Category:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: ID unique de la catégorie
+        name:
+          type: string
+          description: Nom de la catégorie
+        slug:
+          type: string
+          description: Slug unique pour URL
+        description:
+          type: string
+          nullable: true
+          description: Description de la catégorie
+        parentId:
+          type: integer
+          nullable: true
+          description: ID de la catégorie parent
+        isActive:
+          type: boolean
+          description: Catégorie active
+        sortOrder:
+          type: integer
+          description: Ordre de tri
+        createdAt:
+          type: string
+          format: date-time
+          description: Date de création
+        updatedAt:
+          type: string
+          format: date-time
+          description: Date de modification
+        parent:
+          $ref: '#/components/schemas/Category'
+        children:
+          type: array
+          items:
+            $ref: '#/components/schemas/Category'
+        products:
+          type: array
+          items:
+            $ref: '#/components/schemas/Product'
+        files:
+          type: array
+          items:
+            $ref: '#/components/schemas/File'
+
+    Brand:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: ID unique de la marque
+        name:
+          type: string
+          description: Nom de la marque
+        slug:
+          type: string
+          description: Slug unique pour URL
+        description:
+          type: string
+          nullable: true
+          description: Description de la marque
+        logoUrl:
+          type: string
+          nullable: true
+          description: URL du logo
+        websiteUrl:
+          type: string
+          nullable: true
+          description: URL du site web
+        isActive:
+          type: boolean
+          description: Marque active
+        createdAt:
+          type: string
+          format: date-time
+          description: Date de création
+        updatedAt:
+          type: string
+          format: date-time
+          description: Date de modification
+        products:
+          type: array
+          items:
+            $ref: '#/components/schemas/Product'
+        files:
+          type: array
+          items:
+            $ref: '#/components/schemas/File'
+
+    File:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: ID unique du fichier
+        filename:
+          type: string
+          description: Nom du fichier
+        originalName:
+          type: string
+          description: Nom original du fichier
+        mimeType:
+          type: string
+          description: Type MIME du fichier
+        size:
+          type: integer
+          description: Taille du fichier en bytes
+        bucket:
+          type: string
+          description: Bucket de stockage
+        url:
+          type: string
+          description: URL d'accès au fichier
+        fileableType:
+          type: string
+          nullable: true
+          description: Type d'entité associée
+        fileableId:
+          type: integer
+          nullable: true
+          description: ID de l'entité associée
+        createdAt:
+          type: string
+          format: date-time
+          description: Date de création
+        updatedAt:
+          type: string
+          format: date-time
+          description: Date de modification
+
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: ID unique de l'utilisateur
+        email:
+          type: string
+          format: email
+          description: Email de l'utilisateur
+        firstName:
+          type: string
+          description: Prénom
+        lastName:
+          type: string
+          description: Nom de famille
+        isActive:
+          type: boolean
+          description: Utilisateur actif
+        createdAt:
+          type: string
+          format: date-time
+          description: Date de création
+        updatedAt:
+          type: string
+          format: date-time
+          description: Date de modification
+
+    # Schémas de réponse
+    ApiResponse:
+      type: object
+      properties:
+        data:
+          description: Données de réponse
+        message:
+          type: string
+          description: Message de réponse
+
+    PaginatedResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          description: Données paginées
+        meta:
+          type: object
+          properties:
+            total:
+              type: integer
+            per_page:
+              type: integer
+            current_page:
+              type: integer
+            last_page:
+              type: integer
+
+    ErrorResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          description: Message d'erreur
+        error:
+          type: string
+          description: Détails de l'erreur
+
+    # Schémas de création/mise à jour
+    CreateProductRequest:
+      type: object
+      required:
+        - name
+        - price
+      properties:
+        name:
+          type: string
+          description: Nom du produit
+        description:
+          type: string
+          description: Description du produit
+        shortDescription:
+          type: string
+          description: Description courte
+        sku:
+          type: string
+          description: Code SKU
+        price:
+          type: number
+          format: float
+          description: Prix du produit
+        salePrice:
+          type: number
+          format: float
+          description: Prix de vente
+        stockQuantity:
+          type: integer
+          default: 0
+          description: Quantité en stock
+        manageStock:
+          type: boolean
+          default: true
+          description: Gérer le stock
+        inStock:
+          type: boolean
+          default: true
+          description: En stock
+        isFeatured:
+          type: boolean
+          default: false
+          description: Mis en avant
+        isActive:
+          type: boolean
+          default: true
+          description: Actif
+        categoryId:
+          type: integer
+          description: ID de la catégorie
+        brandId:
+          type: integer
+          description: ID de la marque
+
+    UpdateProductRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Nom du produit
+        description:
+          type: string
+          description: Description du produit
+        shortDescription:
+          type: string
+          description: Description courte
+        sku:
+          type: string
+          description: Code SKU
+        price:
+          type: number
+          format: float
+          description: Prix du produit
+        salePrice:
+          type: number
+          format: float
+          description: Prix de vente
+        stockQuantity:
+          type: integer
+          description: Quantité en stock
+        manageStock:
+          type: boolean
+          description: Gérer le stock
+        inStock:
+          type: boolean
+          description: En stock
+        isFeatured:
+          type: boolean
+          description: Mis en avant
+        isActive:
+          type: boolean
+          description: Actif
+        categoryId:
+          type: integer
+          description: ID de la catégorie
+        brandId:
+          type: integer
+          description: ID de la marque
+
+    CreateCategoryRequest:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          description: Nom de la catégorie
+        description:
+          type: string
+          description: Description de la catégorie
+        parentId:
+          type: integer
+          description: ID de la catégorie parent
+        isActive:
+          type: boolean
+          default: true
+          description: Catégorie active
+        sortOrder:
+          type: integer
+          default: 0
+          description: Ordre de tri
+
+    CreateBrandRequest:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          description: Nom de la marque
+        description:
+          type: string
+          description: Description de la marque
+        logoUrl:
+          type: string
+          description: URL du logo
+        websiteUrl:
+          type: string
+          description: URL du site web
+        isActive:
+          type: boolean
+          default: true
+          description: Marque active
+
+paths:
+  # Routes publiques - Produits
+  /products:
+    get:
+      tags:
+        - Products (Public)
+      summary: Liste des produits avec pagination
+      description: Récupère la liste des produits avec possibilité de recherche et pagination
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+          description: Numéro de page
+        - name: per_page
+          in: query
+          schema:
+            type: integer
+            default: 20
+          description: Nombre d'éléments par page
+        - name: search
+          in: query
+          schema:
+            type: string
+          description: Terme de recherche
+      responses:
+        '200':
+          description: Liste des produits
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedResponse'
+        '500':
+          description: Erreur serveur
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    post:
+      tags:
+        - Products (Admin)
+      summary: Créer un produit
+      description: Crée un nouveau produit (authentification requise)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateProductRequest'
+      responses:
+        '201':
+          description: Produit créé avec succès
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Product'
+        '400':
+          description: Données invalides
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Non authentifié
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /products/featured:
+    get:
+      tags:
+        - Products (Public)
+      summary: Produits mis en avant
+      description: Récupère la liste des produits mis en avant
+      responses:
+        '200':
+          description: Liste des produits mis en avant
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Product'
+
+  /products/{slug}:
+    get:
+      tags:
+        - Products (Public)
+      summary: Détails d'un produit
+      description: Récupère les détails d'un produit par son slug
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Slug du produit
+      responses:
+        '200':
+          description: Détails du produit
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Product'
+        '404':
+          description: Produit non trouvé
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /products/{id}:
+    put:
+      tags:
+        - Products (Admin)
+      summary: Mettre à jour un produit
+      description: Met à jour un produit existant (authentification requise)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: ID du produit
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateProductRequest'
+      responses:
+        '200':
+          description: Produit mis à jour
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Product'
+        '400':
+          description: Données invalides
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Produit non trouvé
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    delete:
+      tags:
+        - Products (Admin)
+      summary: Supprimer un produit
+      description: Supprime un produit (authentification requise)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: ID du produit
+      responses:
+        '200':
+          description: Produit supprimé
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: 'Product deleted successfully'
+        '404':
+          description: Produit non trouvé
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /products/category/{categoryId}:
+    get:
+      tags:
+        - Products (Public)
+      summary: Produits par catégorie
+      description: Récupère les produits d'une catégorie
+      parameters:
+        - name: categoryId
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: ID de la catégorie
+      responses:
+        '200':
+          description: Produits de la catégorie
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Product'
+
+  /products/brand/{brandId}:
+    get:
+      tags:
+        - Products (Public)
+      summary: Produits par marque
+      description: Récupère les produits d'une marque
+      parameters:
+        - name: brandId
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: ID de la marque
+      responses:
+        '200':
+          description: Produits de la marque
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Product'
+
+  # Routes publiques - Catégories
+  /categories:
+    get:
+      tags:
+        - Categories (Public)
+      summary: Liste des catégories
+      description: Récupère toutes les catégories actives
+      responses:
+        '200':
+          description: Liste des catégories
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Category'
+
+    post:
+      tags:
+        - Categories (Admin)
+      summary: Créer une catégorie
+      description: Crée une nouvelle catégorie (authentification requise)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCategoryRequest'
+      responses:
+        '201':
+          description: Catégorie créée
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Category'
+
+  /categories/{slug}:
+    get:
+      tags:
+        - Categories (Public)
+      summary: Détails d'une catégorie
+      description: Récupère les détails d'une catégorie par son slug
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Slug de la catégorie
+      responses:
+        '200':
+          description: Détails de la catégorie
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Category'
+
+  # Routes publiques - Marques
+  /brands:
+    get:
+      tags:
+        - Brands (Public)
+      summary: Liste des marques
+      description: Récupère toutes les marques actives
+      responses:
+        '200':
+          description: Liste des marques
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Brand'
+
+    post:
+      tags:
+        - Brands (Admin)
+      summary: Créer une marque
+      description: Crée une nouvelle marque (authentification requise)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateBrandRequest'
+      responses:
+        '201':
+          description: Marque créée
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Brand'
+
+  /brands/{slug}:
+    get:
+      tags:
+        - Brands (Public)
+      summary: Détails d'une marque
+      description: Récupère les détails d'une marque par son slug
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Slug de la marque
+      responses:
+        '200':
+          description: Détails de la marque
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Brand'
+
+  # Routes de fichiers
+  /files/upload:
+    post:
+      tags:
+        - Files
+      summary: Upload de fichiers
+      description: Upload un ou plusieurs fichiers vers MinIO
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: Fichier unique à uploader
+                files:
+                  type: array
+                  items:
+                    type: string
+                    format: binary
+                  description: Plusieurs fichiers à uploader
+                bucket:
+                  type: string
+                  default: 'products'
+                  description: Bucket de destination
+                fileable_type:
+                  type: string
+                  description: Type d'entité associée
+                fileable_id:
+                  type: integer
+                  description: ID de l'entité associée
+      responses:
+        '201':
+          description: Fichier(s) uploadé(s)
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        oneOf:
+                          - $ref: '#/components/schemas/File'
+                          - type: array
+                            items:
+                              $ref: '#/components/schemas/File'
+
+  /files/{fileableType}/{fileableId}:
+    get:
+      tags:
+        - Files
+      summary: Fichiers d'une entité
+      description: Récupère tous les fichiers associés à une entité
+      parameters:
+        - name: fileableType
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Type d'entité (Product, Category, Brand)
+        - name: fileableId
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: ID de l'entité
+      responses:
+        '200':
+          description: Liste des fichiers
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/File'
+
+  /files/{id}:
+    delete:
+      tags:
+        - Files
+      summary: Supprimer un fichier
+      description: Supprime un fichier de MinIO et de la base de données
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: ID du fichier
+      responses:
+        '200':
+          description: Fichier supprimé
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: 'File deleted successfully'
+
+tags:
+  - name: Products (Public)
+    description: Endpoints publics pour les produits
+  - name: Products (Admin)
+    description: Endpoints d'administration pour les produits
+  - name: Categories (Public)
+    description: Endpoints publics pour les catégories
+  - name: Categories (Admin)
+    description: Endpoints d'administration pour les catégories
+  - name: Brands (Public)
+    description: Endpoints publics pour les marques
+  - name: Brands (Admin)
+    description: Endpoints d'administration pour les marques
+  - name: Files
+    description: Gestion des fichiers et uploads

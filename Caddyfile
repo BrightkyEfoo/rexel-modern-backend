@@ -1,0 +1,156 @@
+# Caddyfile for Rexel Modern Backend
+{
+    # Global options
+    auto_https off
+    admin off
+    log default {
+        output stdout
+        format console
+    }
+}
+
+# Main server block
+:80 {
+    # Handle health check
+    handle /health {
+        respond "healthy" 200
+    }
+
+    # Handle API routes with rate limiting
+    handle /api/* {
+        # Rate limiting for general API calls
+        rate_limit {
+            zone dynamic_api {
+                key {remote_host}
+                events 100
+                window 1m
+            }
+        }
+        
+        # Reverse proxy to backend
+        reverse_proxy app:3333 {
+            # Health check
+            health_uri /health
+            health_interval 30s
+            health_timeout 10s
+            
+            # Headers
+            header_up Host {upstream_hostport}
+            header_up X-Real-IP {remote_host}
+            header_up X-Forwarded-For {remote_host}
+            header_up X-Forwarded-Proto {scheme}
+        }
+    }
+
+    # Handle file uploads with stricter rate limiting
+    handle /api/files* {
+        # Stricter rate limiting for uploads
+        rate_limit {
+            zone dynamic_uploads {
+                key {remote_host}
+                events 10
+                window 1m
+            }
+        }
+        
+        # Larger request body limit for file uploads
+        request_body {
+            max_size 50MB
+        }
+        
+        reverse_proxy app:3333 {
+            health_uri /health
+            health_interval 30s
+            health_timeout 10s
+            
+            # Extended timeouts for uploads
+            transport http {
+                dial_timeout 60s
+                response_header_timeout 60s
+            }
+            
+            header_up Host {upstream_hostport}
+            header_up X-Real-IP {remote_host}
+            header_up X-Forwarded-For {remote_host}
+            header_up X-Forwarded-Proto {scheme}
+        }
+    }
+
+    # Security headers
+    header {
+        # Remove server information
+        -Server
+        
+        # Security headers
+        X-Content-Type-Options nosniff
+        X-Frame-Options DENY
+        X-XSS-Protection "1; mode=block"
+        Referrer-Policy "strict-origin-when-cross-origin"
+        X-Robots-Tag "noindex, nofollow"
+        
+        # CORS headers for development
+        Access-Control-Allow-Origin "http://localhost:3000"
+        Access-Control-Allow-Methods "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+        Access-Control-Allow-Headers "Content-Type, Authorization"
+        Access-Control-Allow-Credentials "true"
+    }
+
+    # Handle CORS preflight requests
+    @options {
+        method OPTIONS
+    }
+    handle @options {
+        respond 200
+    }
+
+    # Default route - proxy to backend
+    handle {
+        reverse_proxy app:3333 {
+            health_uri /health
+            health_interval 30s
+            health_timeout 10s
+            
+            header_up Host {upstream_hostport}
+            header_up X-Real-IP {remote_host}
+            header_up X-Forwarded-For {remote_host}
+            header_up X-Forwarded-Proto {scheme}
+        }
+    }
+
+    # Logging
+    log {
+        output stdout
+        format console
+    }
+}
+
+# HTTPS/Production server (uncomment for production)
+# your-domain.com {
+#     # Rate limiting
+#     rate_limit {
+#         zone static_api {
+#             key {remote_host}
+#             events 100
+#             window 1m
+#         }
+#     }
+#
+#     # Security headers for production
+#     header {
+#         Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+#         Content-Security-Policy "default-src 'self'"
+#         X-Content-Type-Options nosniff
+#         X-Frame-Options DENY
+#         X-XSS-Protection "1; mode=block"
+#         Referrer-Policy "strict-origin-when-cross-origin"
+#     }
+#
+#     # Reverse proxy to backend
+#     reverse_proxy app:3333
+#
+#     # Access logs
+#     log {
+#         output file /var/log/caddy/access.log
+#         format json
+#     }
+# } 
