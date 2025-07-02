@@ -59,10 +59,100 @@ jobs:
             mkdir -p ${{ env.VPS_DEPLOY_PATH }}/uploads
             mkdir -p ${{ env.VPS_DEPLOY_PATH }}/minio-data
 
+  docker-setup:
+    name: Verify Docker Setup
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Verify and setup Docker environment
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_PRIVATE_KEY }}
+          port: 22
+          script: |
+            echo "=== Docker Environment Check ==="
+            
+            # Check if Docker is installed
+            if ! command -v docker &> /dev/null; then
+              echo "🔧 Docker not found, installing..."
+              curl -fsSL https://get.docker.com -o get-docker.sh
+              sudo sh get-docker.sh
+              rm get-docker.sh
+            else
+              echo "✅ Docker is installed: $(docker --version)"
+            fi
+            
+            # Check if Docker service is running
+            if ! sudo systemctl is-active --quiet docker; then
+              echo "🔧 Starting Docker service..."
+              sudo systemctl start docker
+              sudo systemctl enable docker
+            else
+              echo "✅ Docker service is running"
+            fi
+            
+            # Check if user is in docker group
+            if ! groups $USER | grep -q '\bdocker\b'; then
+              echo "🔧 Adding user to docker group..."
+              sudo usermod -aG docker $USER
+              echo "⚠️  User added to docker group. Testing access..."
+            else
+              echo "✅ User is in docker group"
+            fi
+            
+            # Test Docker access with retry logic
+            echo "🧪 Testing Docker access..."
+            max_attempts=5
+            attempt=1
+            
+            while [ $attempt -le $max_attempts ]; do
+              if docker ps &> /dev/null; then
+                echo "✅ Docker access test successful!"
+                break
+              else
+                echo "⚠️  Docker access test failed (attempt $attempt/$max_attempts)"
+                if [ $attempt -eq $max_attempts ]; then
+                  echo "❌ Docker access still failing after $max_attempts attempts"
+                  echo "Trying with sudo as fallback..."
+                  if sudo docker ps &> /dev/null; then
+                    echo "✅ Docker works with sudo"
+                    echo "⚠️  Will use sudo for Docker commands"
+                  else
+                    echo "❌ Docker not working even with sudo"
+                    exit 1
+                  fi
+                else
+                  echo "Waiting 5 seconds before retry..."
+                  sleep 5
+                  # Try to refresh group membership
+                  newgrp docker || true
+                fi
+              fi
+              attempt=$((attempt + 1))
+            done
+            
+            # Install Docker Compose if not present
+            if ! command -v docker-compose &> /dev/null && ! docker compose version &> /dev/null; then
+              echo "🔧 Installing Docker Compose..."
+              sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+              sudo chmod +x /usr/local/bin/docker-compose
+            else
+              echo "✅ Docker Compose is available"
+            fi
+            
+            # Final verification
+            echo "=== Final Docker Environment Status ==="
+            docker --version || sudo docker --version
+            docker compose version || docker-compose --version || sudo docker compose version
+            echo "Docker daemon status: $(sudo systemctl is-active docker)"
+            echo "User groups: $(groups $USER)"
+
   checkout:
     name: Checkout Code
     runs-on: ubuntu-latest
-    needs: prepare-directory
+    needs: [docker-setup, prepare-directory]
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -229,6 +319,20 @@ jobs:
           script: |
             cd ${{ env.VPS_DEPLOY_PATH }}
             
+            # Detect if sudo is needed for Docker commands
+            USE_SUDO=""
+            if ! docker ps &> /dev/null; then
+              if sudo docker ps &> /dev/null; then
+                echo "⚠️  Using sudo for Docker commands"
+                USE_SUDO="sudo "
+              else
+                echo "❌ Docker not accessible even with sudo"
+                exit 1
+              fi
+            else
+              echo "✅ Docker accessible without sudo"
+            fi
+            
             # Create production .env file
             cat > .env << EOF
             NODE_ENV=production
@@ -279,56 +383,56 @@ jobs:
             EOF
             
             # Create rexel-network if it doesn't exist
-            if ! docker network ls | grep -q rexel-network; then
+            if ! ${USE_SUDO}docker network ls | grep -q rexel-network; then
               echo 'Creating rexel-network...'
-              docker network create rexel-network
+              ${USE_SUDO}docker network create rexel-network
             else
               echo 'rexel-network already exists'
             fi
             
             # Load the new Docker image
-            docker load < images/rexel-backend-prod-current.tar
+            ${USE_SUDO}docker load < images/rexel-backend-prod-current.tar
             
             # Tag the loaded image as latest for docker-compose
-            IMAGE_NAME=$(docker images --format "table {{.Repository}}:{{.Tag}}" | grep rexel-backend-prod | grep -v latest | head -n 1)
-            docker tag $IMAGE_NAME rexel-backend-prod:latest
+            IMAGE_NAME=$(${USE_SUDO}docker images --format "table {{.Repository}}:{{.Tag}}" | grep rexel-backend-prod | grep -v latest | head -n 1)
+            ${USE_SUDO}docker tag $IMAGE_NAME rexel-backend-prod:latest
             
             # Stop existing services
             echo 'Stopping existing services...'
-            docker compose -f docker-compose.prod.yml down || echo 'No existing services to stop'
+            ${USE_SUDO}docker compose -f docker-compose.prod.yml down || echo 'No existing services to stop'
             
             # Start infrastructure services first (db, minio, redis)
             echo 'Starting infrastructure services...'
-            docker compose -f docker-compose.prod.yml up -d db minio redis
+            ${USE_SUDO}docker compose -f docker-compose.prod.yml up -d db minio redis
             
             # Wait for database to be ready
             echo "Waiting for database to be ready..."
-            until docker compose -f docker-compose.prod.yml exec -T db pg_isready -U ${{ secrets.DB_USER }}; do
+            until ${USE_SUDO}docker compose -f docker-compose.prod.yml exec -T db pg_isready -U ${{ secrets.DB_USER }}; do
               echo "Database not ready yet, waiting..."
               sleep 2
             done
             
             # Create database if not exists
             echo "Creating database ${{ secrets.DB_DATABASE }} if not exists..."
-            docker compose -f docker-compose.prod.yml exec -T db psql -U ${{ secrets.DB_USER }} -c "SELECT 'CREATE DATABASE \"${{ secrets.DB_DATABASE }}\"' WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = '${{ secrets.DB_DATABASE }}')\\gexec"
+            ${USE_SUDO}docker compose -f docker-compose.prod.yml exec -T db psql -U ${{ secrets.DB_USER }} -c "SELECT 'CREATE DATABASE \"${{ secrets.DB_DATABASE }}\"' WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = '${{ secrets.DB_DATABASE }}')\\gexec"
             
             # Wait for MinIO to be ready
             echo "Waiting for MinIO to be ready..."
-            until docker compose -f docker-compose.prod.yml exec -T minio mc ready local; do
+            until ${USE_SUDO}docker compose -f docker-compose.prod.yml exec -T minio mc ready local; do
               echo "MinIO not ready yet, waiting..."
               sleep 2
             done
             
             # Create MinIO bucket if not exists
             echo "Creating MinIO bucket ${{ secrets.MINIO_BUCKET }} if not exists..."
-            docker compose -f docker-compose.prod.yml exec -T minio mc mb local/${{ secrets.MINIO_BUCKET }} || echo "Bucket already exists"
+            ${USE_SUDO}docker compose -f docker-compose.prod.yml exec -T minio mc mb local/${{ secrets.MINIO_BUCKET }} || echo "Bucket already exists"
             
             # Set bucket policy to public read for public files
-            docker compose -f docker-compose.prod.yml exec -T minio mc anonymous set public local/${{ secrets.MINIO_BUCKET }}/public || echo "Could not set public policy"
+            ${USE_SUDO}docker compose -f docker-compose.prod.yml exec -T minio mc anonymous set public local/${{ secrets.MINIO_BUCKET }}/public || echo "Could not set public policy"
             
             # Verify database is accessible
             echo "Verifying database is accessible..."
-            docker compose -f docker-compose.prod.yml exec -T db psql -U ${{ secrets.DB_USER }} -d "${{ secrets.DB_DATABASE }}" -c "SELECT 1;" > /dev/null
+            ${USE_SUDO}docker compose -f docker-compose.prod.yml exec -T db psql -U ${{ secrets.DB_USER }} -d "${{ secrets.DB_DATABASE }}" -c "SELECT 1;" > /dev/null
             echo "Database is ready!"
             
             # Give infrastructure services a moment to settle
@@ -337,7 +441,7 @@ jobs:
             
             # Now start the application service
             echo 'Starting application service...'
-            docker compose -f docker-compose.prod.yml up -d app
+            ${USE_SUDO}docker compose -f docker-compose.prod.yml up -d app
             
             # Wait for services to start
             echo 'Waiting for services to start...'
@@ -345,22 +449,22 @@ jobs:
             
             # Check if services are running
             echo 'Checking service status...'
-            if [ $(docker ps -q -f name=${{ env.CONTAINER_NAME }}) ]; then
+            if [ $(${USE_SUDO}docker ps -q -f name=${{ env.CONTAINER_NAME }}) ]; then
               echo '✅ Application container is running successfully!'
-              docker ps -f name=rexel-backend-prod
-              docker ps -f name=rexel-postgres-prod
-              docker ps -f name=rexel-minio-prod
+              ${USE_SUDO}docker ps -f name=rexel-backend-prod
+              ${USE_SUDO}docker ps -f name=rexel-postgres-prod
+              ${USE_SUDO}docker ps -f name=rexel-minio-prod
               echo 'Checking application health...'
               sleep 5
               # Test API health endpoint
-              if docker compose -f docker-compose.prod.yml exec -T app wget -q -O - http://localhost:3333/health > /dev/null 2>&1; then
+              if ${USE_SUDO}docker compose -f docker-compose.prod.yml exec -T app wget -q -O - http://localhost:3333/health > /dev/null 2>&1; then
                 echo '✅ Application health check passed!'
               else
                 echo '⚠️  Application health check failed, but container is running'
               fi
             else
               echo '❌ Application container failed to start!'
-              docker compose -f docker-compose.prod.yml logs app
+              ${USE_SUDO}docker compose -f docker-compose.prod.yml logs app
               exit 1
             fi
 
@@ -381,14 +485,26 @@ jobs:
           script: |
             cd ${{ env.VPS_DEPLOY_PATH }}
             
+            # Detect if sudo is needed for Docker commands
+            USE_SUDO=""
+            if ! docker ps &> /dev/null; then
+              if sudo docker ps &> /dev/null; then
+                echo "⚠️  Using sudo for Docker commands"
+                USE_SUDO="sudo "
+              else
+                echo "❌ Docker not accessible even with sudo"
+                exit 1
+              fi
+            fi
+            
             echo "Running database migrations..."
-            docker compose -f docker-compose.prod.yml exec -T app node ace migration:run --force
+            ${USE_SUDO}docker compose -f docker-compose.prod.yml exec -T app node ace migration:run --force
             
             if [ $? -eq 0 ]; then
               echo "✅ Migrations completed successfully!"
             else
               echo "❌ Migration failed!"
-              docker compose -f docker-compose.prod.yml logs app
+              ${USE_SUDO}docker compose -f docker-compose.prod.yml logs app
               exit 1
             fi
 
@@ -409,22 +525,34 @@ jobs:
           script: |
             cd ${{ env.VPS_DEPLOY_PATH }}
             
+            # Detect if sudo is needed for Docker commands
+            USE_SUDO=""
+            if ! docker ps &> /dev/null; then
+              if sudo docker ps &> /dev/null; then
+                echo "⚠️  Using sudo for Docker commands"
+                USE_SUDO="sudo "
+              else
+                echo "❌ Docker not accessible even with sudo"
+                exit 1
+              fi
+            fi
+            
             SEED_TYPE="${{ github.event.inputs.seed_type || 'production' }}"
             echo "Running database seeds (type: $SEED_TYPE)..."
             
             if [ "$SEED_TYPE" = "production" ]; then
               # Run main seeder which should handle production data
-              docker compose -f docker-compose.prod.yml exec -T app node ace db:seed --files="database/seeders/main_seeder.ts"
+              ${USE_SUDO}docker compose -f docker-compose.prod.yml exec -T app node ace db:seed --files="database/seeders/main_seeder.ts"
             else
               # Run all seeders for development data
-              docker compose -f docker-compose.prod.yml exec -T app node ace db:seed
+              ${USE_SUDO}docker compose -f docker-compose.prod.yml exec -T app node ace db:seed
             fi
             
             if [ $? -eq 0 ]; then
               echo "✅ Seeds completed successfully!"
             else
               echo "❌ Seeds failed!"
-              docker compose -f docker-compose.prod.yml logs app
+              ${USE_SUDO}docker compose -f docker-compose.prod.yml logs app
               exit 1
             fi
 
@@ -445,19 +573,31 @@ jobs:
           script: |
             cd ${{ env.VPS_DEPLOY_PATH }}
             
+            # Detect if sudo is needed for Docker commands
+            USE_SUDO=""
+            if ! docker ps &> /dev/null; then
+              if sudo docker ps &> /dev/null; then
+                echo "⚠️  Using sudo for Docker commands"
+                USE_SUDO="sudo "
+              else
+                echo "❌ Docker not accessible even with sudo"
+                exit 1
+              fi
+            fi
+            
             echo "=== COMPREHENSIVE HEALTH CHECK ==="
             
             # Check container status
             echo "📋 Container Status:"
-            docker ps -f name=rexel- --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+            ${USE_SUDO}docker ps -f name=rexel- --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
             
             # Check application logs (last 10 lines)
             echo -e "\n📝 Application Logs (last 10 lines):"
-            docker compose -f docker-compose.prod.yml logs --tail=10 app
+            ${USE_SUDO}docker compose -f docker-compose.prod.yml logs --tail=10 app
             
             # Test database connection
             echo -e "\n🗄️  Database Connection Test:"
-            if docker compose -f docker-compose.prod.yml exec -T app node ace migration:status > /dev/null 2>&1; then
+            if ${USE_SUDO}docker compose -f docker-compose.prod.yml exec -T app node ace migration:status > /dev/null 2>&1; then
               echo "✅ Database connection successful"
             else
               echo "❌ Database connection failed"
@@ -465,7 +605,7 @@ jobs:
             
             # Test MinIO connection
             echo -e "\n📦 MinIO Connection Test:"
-            if docker compose -f docker-compose.prod.yml exec -T minio mc ls local/${{ secrets.MINIO_BUCKET }} > /dev/null 2>&1; then
+            if ${USE_SUDO}docker compose -f docker-compose.prod.yml exec -T minio mc ls local/${{ secrets.MINIO_BUCKET }} > /dev/null 2>&1; then
               echo "✅ MinIO connection successful"
             else
               echo "❌ MinIO connection failed"
@@ -473,7 +613,7 @@ jobs:
             
             # Test API endpoints
             echo -e "\n🌐 API Endpoints Test:"
-            if docker compose -f docker-compose.prod.yml exec -T app wget -q -O - http://localhost:3333/health 2>/dev/null | grep -q "ok\|healthy\|200" || echo '{"status":"ok"}' | grep -q "ok"; then
+            if ${USE_SUDO}docker compose -f docker-compose.prod.yml exec -T app wget -q -O - http://localhost:3333/health 2>/dev/null | grep -q "ok\|healthy\|200" || echo '{"status":"ok"}' | grep -q "ok"; then
               echo "✅ Health endpoint responding"
             else
               echo "❌ Health endpoint not responding"
@@ -500,8 +640,20 @@ jobs:
           key: ${{ secrets.VPS_SSH_PRIVATE_KEY }}
           port: 22
           script: |
+            # Detect if sudo is needed for Docker commands
+            USE_SUDO=""
+            if ! docker ps &> /dev/null; then
+              if sudo docker ps &> /dev/null; then
+                echo "⚠️  Using sudo for Docker commands"
+                USE_SUDO="sudo "
+              else
+                echo "❌ Docker not accessible even with sudo"
+                exit 1
+              fi
+            fi
+            
             # Remove dangling images
-            docker image prune -f
+            ${USE_SUDO}docker image prune -f
             
             # Keep only the 3 most recent backup images
             cd ${{ env.VPS_DEPLOY_PATH }}/backups
@@ -530,7 +682,7 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### 📋 Services Deployed" >> $GITHUB_STEP_SUMMARY
           echo "- 🚀 **Rexel Backend** (AdonisJS 6)" >> $GITHUB_STEP_SUMMARY
-          echo "- ��️  **PostgreSQL Database**" >> $GITHUB_STEP_SUMMARY
+          echo "- 🚀 **PostgreSQL Database**" >> $GITHUB_STEP_SUMMARY
           echo "- 📦 **MinIO Object Storage**" >> $GITHUB_STEP_SUMMARY
           echo "- 🗃️  **Redis Cache** (optional)" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
