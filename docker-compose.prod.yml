@@ -153,7 +153,8 @@ services:
     image: caddy:2-alpine
     container_name: rexel-caddy-prod
     restart: unless-stopped
-    depends_on: [app]
+    depends_on:
+      - app
     ports:
       - '80:80'
       - '443:443'
