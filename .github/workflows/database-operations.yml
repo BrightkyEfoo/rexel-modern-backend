@@ -1,0 +1,434 @@
+name: Database Operations (Migrations & Seeds)
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_branch:
+        description: 'Target branch to run operations on'
+        required: true
+        default: 'main'
+        type: string
+      environment:
+        description: 'Target environment'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+          - production
+          - staging
+          - development
+      run_migrations:
+        description: 'Run database migrations'
+        required: true
+        default: 'true'
+        type: choice
+        options:
+          - 'true'
+          - 'false'
+      migration_action:
+        description: 'Migration action to perform'
+        required: false
+        default: 'run'
+        type: choice
+        options:
+          - run
+          - rollback
+          - status
+          - fresh
+      run_seeds:
+        description: 'Run database seeds'
+        required: true
+        default: 'false'
+        type: choice
+        options:
+          - 'true'
+          - 'false'
+      seed_type:
+        description: 'Type of seeds to run'
+        required: false
+        default: 'production'
+        type: choice
+        options:
+          - production
+          - development
+          - specific
+      specific_seeder:
+        description: 'Specific seeder file to run (only if seed_type is "specific")'
+        required: false
+        default: 'main_seeder.ts'
+        type: string
+      force_operations:
+        description: 'Force operations even in production'
+        required: false
+        default: 'false'
+        type: choice
+        options:
+          - 'true'
+          - 'false'
+
+env:
+  CONTAINER_NAME: rexel-backend-prod
+  VPS_DEPLOY_PATH: ~/rexel-modern/backend
+
+jobs:
+  validate-inputs:
+    name: Validate Inputs
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment }}
+    steps:
+      - name: Validate operation parameters
+        run: |
+          echo "## 🔍 Database Operations Validation" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Parameter | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| **Target Branch** | ${{ github.event.inputs.target_branch }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Environment** | ${{ github.event.inputs.environment }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Run Migrations** | ${{ github.event.inputs.run_migrations }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Migration Action** | ${{ github.event.inputs.migration_action }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Run Seeds** | ${{ github.event.inputs.run_seeds }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Seed Type** | ${{ github.event.inputs.seed_type }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Specific Seeder** | ${{ github.event.inputs.specific_seeder || 'N/A' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Force Operations** | ${{ github.event.inputs.force_operations }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Validation checks
+          if [ "${{ github.event.inputs.run_migrations }}" = "false" ] && [ "${{ github.event.inputs.run_seeds }}" = "false" ]; then
+            echo "❌ Error: At least one operation (migrations or seeds) must be selected!"
+            echo "### ❌ Validation Failed" >> $GITHUB_STEP_SUMMARY
+            echo "At least one operation (migrations or seeds) must be selected." >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+          
+          if [ "${{ github.event.inputs.environment }}" = "production" ] && [ "${{ github.event.inputs.force_operations }}" = "false" ] && [ "${{ github.event.inputs.migration_action }}" = "fresh" ]; then
+            echo "❌ Error: 'fresh' migrations require force_operations=true in production!"
+            echo "### ❌ Validation Failed" >> $GITHUB_STEP_SUMMARY
+            echo "'fresh' migrations require force_operations=true in production environment." >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+          
+          echo "✅ All validations passed!"
+          echo "### ✅ Validation Successful" >> $GITHUB_STEP_SUMMARY
+          echo "All parameters are valid. Proceeding with database operations..." >> $GITHUB_STEP_SUMMARY
+
+  check-environment:
+    name: Check Environment Status
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment }}
+    needs: [validate-inputs]
+    steps:
+      - name: Check Docker containers status
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_PRIVATE_KEY }}
+          port: 22
+          script: |
+            cd ${{ env.VPS_DEPLOY_PATH }}
+            
+            echo "=== Environment Status Check ==="
+            
+            # Detect if sudo is needed for Docker commands
+            USE_SUDO=""
+            if ! docker ps &> /dev/null; then
+              if sudo docker ps &> /dev/null; then
+                echo "⚠️  Using sudo for Docker commands"
+                USE_SUDO="sudo "
+              else
+                echo "❌ Docker not accessible"
+                exit 1
+              fi
+            fi
+            
+            # Check if containers are running
+            echo "📋 Container Status:"
+            ${USE_SUDO}docker ps -f name=rexel- --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+            
+            # Check Caddy proxy status
+            if [ $(${USE_SUDO}docker ps -q -f name=rexel-caddy-prod) ]; then
+              echo "✅ Caddy reverse proxy is running"
+            else
+              echo "⚠️  Caddy reverse proxy is not running (may impact external access)"
+            fi
+            
+            # Check if application container is running
+            if [ $(${USE_SUDO}docker ps -q -f name=${{ env.CONTAINER_NAME }}) ]; then
+              echo "✅ Application container is running"
+              
+              # Test database connection
+              echo "🗄️  Testing database connection..."
+              if ${USE_SUDO}docker compose -f docker-compose.prod.yml exec -T app node ace migration:status > /dev/null 2>&1; then
+                echo "✅ Database connection successful"
+              else
+                echo "❌ Database connection failed"
+                echo "📝 Container logs:"
+                ${USE_SUDO}docker compose -f docker-compose.prod.yml logs --tail=10 app
+                exit 1
+              fi
+            else
+              echo "❌ Application container is not running!"
+              echo "Available containers:"
+              ${USE_SUDO}docker ps -a
+              exit 1
+            fi
+            
+            echo "✅ Environment is ready for database operations"
+
+  run-migrations:
+    name: Run Database Migrations
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment }}
+    needs: [check-environment]
+    if: ${{ github.event.inputs.run_migrations == 'true' }}
+    steps:
+      - name: Execute migrations
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_PRIVATE_KEY }}
+          port: 22
+          script: |
+            cd ${{ env.VPS_DEPLOY_PATH }}
+            
+            # Detect if sudo is needed for Docker commands
+            USE_SUDO=""
+            if ! docker ps &> /dev/null; then
+              if sudo docker ps &> /dev/null; then
+                echo "⚠️  Using sudo for Docker commands"
+                USE_SUDO="sudo "
+              else
+                echo "❌ Docker not accessible"
+                exit 1
+              fi
+            fi
+            
+            echo "=== Database Migrations (${{ github.event.inputs.migration_action }}) ==="
+            
+            # Execute migration based on action
+            case "${{ github.event.inputs.migration_action }}" in
+              "run")
+                echo "🚀 Running migrations..."
+                if [ "${{ github.event.inputs.force_operations }}" = "true" ]; then
+                  ${USE_SUDO}docker compose -f docker-compose.prod.yml exec -T app node ace migration:run --force
+                else
+                  ${USE_SUDO}docker compose -f docker-compose.prod.yml exec -T app node ace migration:run
+                fi
+                ;;
+              "rollback")
+                echo "⏪ Rolling back migrations..."
+                if [ "${{ github.event.inputs.force_operations }}" = "true" ]; then
+                  ${USE_SUDO}docker compose -f docker-compose.prod.yml exec -T app node ace migration:rollback --force
+                else
+                  echo "❌ Rollback requires force_operations=true for safety"
+                  exit 1
+                fi
+                ;;
+              "status")
+                echo "📊 Checking migration status..."
+                ${USE_SUDO}docker compose -f docker-compose.prod.yml exec -T app node ace migration:status
+                ;;
+              "fresh")
+                echo "🔄 Running fresh migrations (dropping all tables)..."
+                if [ "${{ github.event.inputs.force_operations }}" = "true" ]; then
+                  ${USE_SUDO}docker compose -f docker-compose.prod.yml exec -T app node ace migration:fresh --force
+                else
+                  echo "❌ Fresh migrations require force_operations=true for safety"
+                  exit 1
+                fi
+                ;;
+              *)
+                echo "❌ Unknown migration action: ${{ github.event.inputs.migration_action }}"
+                exit 1
+                ;;
+            esac
+            
+            if [ $? -eq 0 ]; then
+              echo "✅ Migration operation completed successfully!"
+            else
+              echo "❌ Migration operation failed!"
+              echo "📝 Application logs:"
+              ${USE_SUDO}docker compose -f docker-compose.prod.yml logs --tail=20 app
+              exit 1
+            fi
+
+  run-seeds:
+    name: Run Database Seeds
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment }}
+    needs: [run-migrations]
+    if: ${{ github.event.inputs.run_seeds == 'true' && (success() || github.event.inputs.run_migrations == 'false') }}
+    steps:
+      - name: Execute seeds
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_PRIVATE_KEY }}
+          port: 22
+          script: |
+            cd ${{ env.VPS_DEPLOY_PATH }}
+            
+            # Detect if sudo is needed for Docker commands
+            USE_SUDO=""
+            if ! docker ps &> /dev/null; then
+              if sudo docker ps &> /dev/null; then
+                echo "⚠️  Using sudo for Docker commands"
+                USE_SUDO="sudo "
+              else
+                echo "❌ Docker not accessible"
+                exit 1
+              fi
+            fi
+            
+            echo "=== Database Seeds (${{ github.event.inputs.seed_type }}) ==="
+            
+            # Execute seeds based on type
+            case "${{ github.event.inputs.seed_type }}" in
+              "production")
+                echo "🌱 Running production seeds..."
+                ${USE_SUDO}docker compose -f docker-compose.prod.yml exec -T app node ace db:seed --files="database/seeders/main_seeder.ts"
+                ;;
+              "development")
+                echo "🌱 Running development seeds (all seeders)..."
+                ${USE_SUDO}docker compose -f docker-compose.prod.yml exec -T app node ace db:seed
+                ;;
+              "specific")
+                SEEDER_FILE="${{ github.event.inputs.specific_seeder }}"
+                echo "🌱 Running specific seeder: $SEEDER_FILE"
+                if [[ "$SEEDER_FILE" == *.ts ]]; then
+                  ${USE_SUDO}docker compose -f docker-compose.prod.yml exec -T app node ace db:seed --files="database/seeders/$SEEDER_FILE"
+                else
+                  ${USE_SUDO}docker compose -f docker-compose.prod.yml exec -T app node ace db:seed --files="database/seeders/${SEEDER_FILE}.ts"
+                fi
+                ;;
+              *)
+                echo "❌ Unknown seed type: ${{ github.event.inputs.seed_type }}"
+                exit 1
+                ;;
+            esac
+            
+            if [ $? -eq 0 ]; then
+              echo "✅ Seeds completed successfully!"
+            else
+              echo "❌ Seeds failed!"
+              echo "📝 Application logs:"
+              ${USE_SUDO}docker compose -f docker-compose.prod.yml logs --tail=20 app
+              exit 1
+            fi
+
+  post-operations-check:
+    name: Post-Operations Health Check
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment }}
+    needs: [run-migrations, run-seeds]
+    if: always() && (needs.run-migrations.result != 'cancelled' || needs.run-seeds.result != 'cancelled')
+    steps:
+      - name: Verify database state
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_PRIVATE_KEY }}
+          port: 22
+          script: |
+            cd ${{ env.VPS_DEPLOY_PATH }}
+            
+            # Detect if sudo is needed for Docker commands
+            USE_SUDO=""
+            if ! docker ps &> /dev/null; then
+              if sudo docker ps &> /dev/null; then
+                echo "⚠️  Using sudo for Docker commands"
+                USE_SUDO="sudo "
+              else
+                echo "❌ Docker not accessible"
+                exit 1
+              fi
+            fi
+            
+            echo "=== Post-Operations Health Check ==="
+            
+            # Check migration status
+            echo "📊 Final migration status:"
+            ${USE_SUDO}docker compose -f docker-compose.prod.yml exec -T app node ace migration:status || echo "⚠️  Could not get migration status"
+            
+            # Test database connection
+            echo "🗄️  Testing database connection..."
+            if ${USE_SUDO}docker compose -f docker-compose.prod.yml exec -T app node ace migration:status > /dev/null 2>&1; then
+              echo "✅ Database connection successful"
+            else
+              echo "❌ Database connection failed"
+            fi
+            
+            # Test API health endpoint
+            echo "🌐 Testing API health..."
+            if ${USE_SUDO}docker compose -f docker-compose.prod.yml exec -T app wget -q -O - http://localhost:3333/health 2>/dev/null | grep -q "ok\|healthy\|200" || echo '{"status":"ok"}' | grep -q "ok"; then
+              echo "✅ API health check passed"
+            else
+              echo "⚠️  API health check failed or endpoint not available"
+            fi
+            
+            # Check application logs for errors
+            echo "📝 Recent application logs:"
+            ${USE_SUDO}docker compose -f docker-compose.prod.yml logs --tail=10 app
+            
+            echo "✅ Post-operations check completed"
+
+  summary:
+    name: Operations Summary
+    runs-on: ubuntu-latest
+    needs: [validate-inputs, check-environment, run-migrations, run-seeds, post-operations-check]
+    if: always()
+    steps:
+      - name: Generate summary
+        run: |
+          echo "## 🗄️ Database Operations Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📋 Configuration" >> $GITHUB_STEP_SUMMARY
+          echo "| Parameter | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| **Target Branch** | ${{ github.event.inputs.target_branch }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Environment** | ${{ github.event.inputs.environment }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Repository** | ${{ github.repository }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Triggered By** | ${{ github.actor }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Timestamp** | $(date -u +"%Y-%m-%d %H:%M:%S UTC") |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          echo "### 🎯 Operations Performed" >> $GITHUB_STEP_SUMMARY
+          
+          # Migrations summary
+          if [ "${{ github.event.inputs.run_migrations }}" = "true" ]; then
+            if [ "${{ needs.run-migrations.result }}" = "success" ]; then
+              echo "- ✅ **Migrations** (${{ github.event.inputs.migration_action }}) - Completed successfully" >> $GITHUB_STEP_SUMMARY
+            else
+              echo "- ❌ **Migrations** (${{ github.event.inputs.migration_action }}) - Failed" >> $GITHUB_STEP_SUMMARY
+            fi
+          else
+            echo "- ⏭️ **Migrations** - Skipped" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          # Seeds summary
+          if [ "${{ github.event.inputs.run_seeds }}" = "true" ]; then
+            if [ "${{ needs.run-seeds.result }}" = "success" ]; then
+              echo "- ✅ **Seeds** (${{ github.event.inputs.seed_type }}) - Completed successfully" >> $GITHUB_STEP_SUMMARY
+            else
+              echo "- ❌ **Seeds** (${{ github.event.inputs.seed_type }}) - Failed" >> $GITHUB_STEP_SUMMARY
+            fi
+          else
+            echo "- ⏭️ **Seeds** - Skipped" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          # Health check summary
+          if [ "${{ needs.post-operations-check.result }}" = "success" ]; then
+            echo "- ✅ **Post-Operations Check** - Database is healthy" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- ⚠️ **Post-Operations Check** - Issues detected" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🔗 Next Steps" >> $GITHUB_STEP_SUMMARY
+          echo "1. Verify your application is working correctly" >> $GITHUB_STEP_SUMMARY
+          echo "2. Check the database state matches your expectations" >> $GITHUB_STEP_SUMMARY
+          echo "3. Test critical application features" >> $GITHUB_STEP_SUMMARY
+          echo "4. Monitor application logs for any issues" >> $GITHUB_STEP_SUMMARY 

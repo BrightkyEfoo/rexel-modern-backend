@@ -274,7 +274,7 @@ setup_ssl() {
     echo "  - Handle HTTP -> HTTPS redirects"
     echo ""
     echo "Example Caddyfile for production:"
-    echo "  your-domain.com {"
+    echo "  staging-api.kesimarket.com {"
     echo "    reverse_proxy app:3333"
     echo "  }"
 }

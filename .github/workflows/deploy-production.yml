@@ -58,6 +58,8 @@ jobs:
             mkdir -p ${{ env.VPS_DEPLOY_PATH }}/images
             mkdir -p ${{ env.VPS_DEPLOY_PATH }}/uploads
             mkdir -p ${{ env.VPS_DEPLOY_PATH }}/minio-data
+            mkdir -p /var/log/caddy
+            chmod 755 /var/log/caddy
 
   docker-setup:
     name: Verify Docker Setup
@@ -441,9 +443,12 @@ jobs:
             echo "Waiting 10 seconds before starting application..."
             sleep 10
             
-            # Now start the application service
+            # Now start the application and reverse proxy services
             echo 'Starting application service...'
             ${USE_SUDO}docker compose -f docker-compose.prod.yml up -d app
+            
+            echo 'Starting Caddy reverse proxy...'
+            ${USE_SUDO}docker compose -f docker-compose.prod.yml up -d caddy
             
             # Wait for services to start
             echo 'Waiting for services to start...'
@@ -456,13 +461,27 @@ jobs:
               ${USE_SUDO}docker ps -f name=rexel-backend-prod
               ${USE_SUDO}docker ps -f name=rexel-postgres-prod
               ${USE_SUDO}docker ps -f name=rexel-minio-prod
+              ${USE_SUDO}docker ps -f name=rexel-caddy-prod
               echo 'Checking application health...'
               sleep 5
-              # Test API health endpoint
+              
+              # Test direct API health endpoint
               if ${USE_SUDO}docker compose -f docker-compose.prod.yml exec -T app wget -q -O - http://localhost:3333/health > /dev/null 2>&1; then
-                echo '✅ Application health check passed!'
+                echo '✅ Direct application health check passed!'
               else
-                echo '⚠️  Application health check failed, but container is running'
+                echo '⚠️  Direct application health check failed'
+              fi
+              
+              # Test Caddy proxy health endpoint
+              if [ $(${USE_SUDO}docker ps -q -f name=rexel-caddy-prod) ]; then
+                echo '✅ Caddy reverse proxy is running!'
+                if ${USE_SUDO}docker compose -f docker-compose.prod.yml exec -T caddy wget -q -O - http://localhost/health > /dev/null 2>&1; then
+                  echo '✅ Caddy proxy health check passed!'
+                else
+                  echo '⚠️  Caddy proxy health check failed'
+                fi
+              else
+                echo '⚠️  Caddy container not running'
               fi
             else
               echo '❌ Application container failed to start!'
@@ -593,6 +612,17 @@ jobs:
             echo "📋 Container Status:"
             ${USE_SUDO}docker ps -f name=rexel- --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
             
+            # Check Caddy specifically
+            echo -e "\n🌐 Caddy Reverse Proxy Status:"
+            if [ $(${USE_SUDO}docker ps -q -f name=rexel-caddy-prod) ]; then
+              echo "✅ Caddy container is running"
+              ${USE_SUDO}docker logs --tail=5 rexel-caddy-prod
+            else
+              echo "❌ Caddy container not running"
+              echo "Available containers:"
+              ${USE_SUDO}docker ps -a -f name=rexel-caddy-prod
+            fi
+            
             # Check application logs (last 10 lines)
             echo -e "\n📝 Application Logs (last 10 lines):"
             ${USE_SUDO}docker compose -f docker-compose.prod.yml logs --tail=10 app
@@ -684,7 +714,8 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### 📋 Services Deployed" >> $GITHUB_STEP_SUMMARY
           echo "- 🚀 **Rexel Backend** (AdonisJS 6)" >> $GITHUB_STEP_SUMMARY
-          echo "- 🚀 **PostgreSQL Database**" >> $GITHUB_STEP_SUMMARY
+          echo "- 🌐 **Caddy Reverse Proxy** (Load Balancer & SSL)" >> $GITHUB_STEP_SUMMARY
+          echo "- 🗄️ **PostgreSQL Database**" >> $GITHUB_STEP_SUMMARY
           echo "- 📦 **MinIO Object Storage**" >> $GITHUB_STEP_SUMMARY
           echo "- 🗃️  **Redis Cache** (optional)" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY

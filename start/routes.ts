@@ -16,6 +16,7 @@ import {
 import { registerPublicBrandRoutes, registerSecuredBrandRoutes } from '../routes/brands.js'
 import { registerPublicFileRoutes, registerSecuredFileRoutes } from '../routes/files.js'
 import { registerUtilRoutes } from '../routes/utils.js'
+import router from '@adonisjs/core/services/router'
 
 // Enregistrement des routes publiques
 registerPublicProductRoutes()
@@ -31,3 +32,5 @@ registerSecuredFileRoutes()
 
 // Enregistrement des routes utilitaires
 registerUtilRoutes()
+
+router.get('/health', () => 'ok')
