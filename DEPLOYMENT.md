@@ -274,3 +274,124 @@ En cas de problème :
 ---
 
 **Note** : Ce workflow est conçu pour un environnement de production. Assurez-vous de tester d'abord sur un environnement de staging.
+
+## Dépannage des Permissions Docker
+
+### Problème : "permission denied while trying to connect to the Docker daemon socket"
+
+Si vous rencontrez cette erreur lors du déploiement, voici comment la résoudre :
+
+#### Solution Rapide - Script Automatique
+
+1. **Connectez-vous à votre VPS** :
+```bash
+ssh votre-utilisateur@votre-vps
+```
+
+2. **Téléchargez et exécutez le script de dépannage** :
+```bash
+# Télécharger le script
+curl -O https://raw.githubusercontent.com/votre-repo/rexel-modern-backend/main/scripts/fix-docker-permissions.sh
+
+# Rendre exécutable
+chmod +x fix-docker-permissions.sh
+
+# Exécuter
+./fix-docker-permissions.sh
+```
+
+#### Solution Manuelle
+
+1. **Vérifier l'installation Docker** :
+```bash
+# Vérifier si Docker est installé
+docker --version
+
+# Si pas installé, installer Docker
+curl -fsSL https://get.docker.com -o get-docker.sh
+sudo sh get-docker.sh
+rm get-docker.sh
+```
+
+2. **Démarrer le service Docker** :
+```bash
+sudo systemctl start docker
+sudo systemctl enable docker
+```
+
+3. **Ajouter l'utilisateur au groupe docker** :
+```bash
+# Ajouter l'utilisateur au groupe docker
+sudo usermod -aG docker $USER
+
+# Vérifier les groupes
+groups $USER
+```
+
+4. **Appliquer les changements** :
+```bash
+# Méthode 1: Recharger les groupes (parfois suffit)
+newgrp docker
+
+# Méthode 2: Se reconnecter (recommandé)
+logout
+# Puis se reconnecter via SSH
+```
+
+5. **Tester l'accès Docker** :
+```bash
+# Tester sans sudo
+docker ps
+
+# Si ça fonctionne, c'est résolu !
+```
+
+#### Vérification Post-Installation
+
+```bash
+# Vérifier le statut du service
+sudo systemctl status docker
+
+# Vérifier les permissions du socket
+ls -la /var/run/docker.sock
+
+# Tester Docker Compose
+docker compose version
+```
+
+### Après Résolution
+
+Une fois les permissions Docker corrigées :
+
+1. **Relancer le workflow GitHub** depuis l'interface Actions
+2. **Ou déployer manuellement** :
+```bash
+cd ~/rexel-modern/backend
+docker compose -f docker-compose.prod.yml up -d
+```
+
+### Workflow GitHub Amélioré
+
+Le workflow a été mis à jour pour :
+- ✅ Détecter automatiquement les problèmes Docker
+- ✅ Installer Docker si nécessaire
+- ✅ Configurer les permissions automatiquement
+- ✅ S'adapter aux environnements avec/sans sudo
+
+### Diagnostic Avancé
+
+Si le problème persiste :
+
+```bash
+# Vérifier les logs Docker
+sudo journalctl -u docker.service --no-pager
+
+# Redémarrer Docker
+sudo systemctl restart docker
+
+# Vérifier l'espace disque
+df -h
+
+# Tester avec sudo (fallback)
+sudo docker ps
+```

@@ -34,5 +34,5 @@ COPY --from=build /app/build /app
 
 EXPOSE 3333
 
-CMD ["node", "build/bin/server.js"]
+CMD ["node", "bin/server.js"]
 # CMD ["sh", "-c", "while :; do sleep 2073600; done"]
