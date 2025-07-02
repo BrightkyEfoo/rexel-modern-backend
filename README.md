@@ -1,5 +1,38 @@
 # Rexel Modern Backend
 
+## 🚀 Déploiement Rapide
+
+### 1. Setup Initial des Dossiers
+```bash
+# Créer la structure de dossiers automatiquement
+./scripts/setup-directories.sh
+
+# Ou spécifier un chemin personnalisé
+./scripts/setup-directories.sh /custom/path/backend
+```
+
+### 2. Architecture de Déploiement
+- **Caddy** : Reverse proxy avec SSL automatique
+- **AdonisJS** : Backend API 
+- **PostgreSQL** : Base de données
+- **MinIO** : Stockage d'objets
+- **Redis** : Cache
+
+### 3. Services Actifs
+```bash
+# Vérifier les services
+docker ps -f name=rexel-
+
+# Logs Caddy (reverse proxy)
+docker logs -f rexel-caddy-prod
+tail -f ~/rexel-modern/backend/logs/access.log
+
+# Logs application
+docker logs -f rexel-backend-prod
+```
+
+---
+
 Backend API REST moderne avec AdonisJS 6, PostgreSQL, MinIO et architecture Clean.
 
 ## 🚀 Démarrage rapide

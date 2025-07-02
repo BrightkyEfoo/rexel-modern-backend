@@ -58,8 +58,8 @@ jobs:
             mkdir -p ${{ env.VPS_DEPLOY_PATH }}/images
             mkdir -p ${{ env.VPS_DEPLOY_PATH }}/uploads
             mkdir -p ${{ env.VPS_DEPLOY_PATH }}/minio-data
-            mkdir -p /var/log/caddy
-            chmod 755 /var/log/caddy
+            mkdir -p ${{ env.VPS_DEPLOY_PATH }}/logs
+            chmod 755 ${{ env.VPS_DEPLOY_PATH }}/logs
 
   docker-setup:
     name: Verify Docker Setup

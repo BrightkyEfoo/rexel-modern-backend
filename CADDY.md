@@ -54,12 +54,27 @@ curl http://localhost:2019/config/
 # Recharger configuration sans interruption
 docker exec rexel-caddy-prod caddy reload --config /etc/caddy/Caddyfile
 
-# Voir les logs
+# Voir les logs (stdout)
 docker logs -f rexel-caddy-prod
+
+# Voir les logs fichiers (staging/production)
+ls -la ~/rexel-modern/backend/logs/
+tail -f ~/rexel-modern/backend/logs/access.log
 
 # Status des services
 docker ps -f name=rexel-
 ```
+
+### 📝 Gestion des Logs
+
+**Logs de développement** (localhost) :
+- Format : Console stdout
+- Accès : `docker logs rexel-caddy-prod`
+
+**Logs de production** (staging-api.kesimarket.com) :
+- Format : JSON structuré
+- Fichier : `~/rexel-modern/backend/logs/access.log`
+- Rotation : Automatique par Caddy
 
 ## 📊 Migration depuis Nginx
 
