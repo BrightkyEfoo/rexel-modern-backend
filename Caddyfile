@@ -1,7 +1,6 @@
 # Caddyfile for Rexel Modern Backend
 {
     # Global options
-    auto_https on
     admin off
     log default {
         output stdout
