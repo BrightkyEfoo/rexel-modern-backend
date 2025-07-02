@@ -124,33 +124,32 @@
     }
 }
 
-# HTTPS/Production server (uncomment for production)
-# your-domain.com {
-#     # Rate limiting
-#     rate_limit {
-#         zone static_api {
-#             key {remote_host}
-#             events 100
-#             window 1m
-#         }
-#     }
-#
-#     # Security headers for production
-#     header {
-#         Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
-#         Content-Security-Policy "default-src 'self'"
-#         X-Content-Type-Options nosniff
-#         X-Frame-Options DENY
-#         X-XSS-Protection "1; mode=block"
-#         Referrer-Policy "strict-origin-when-cross-origin"
-#     }
-#
-#     # Reverse proxy to backend
-#     reverse_proxy app:3333
-#
-#     # Access logs
-#     log {
-#         output file /var/log/caddy/access.log
-#         format json
-#     }
-# } 
+staging-api.kesimarket.com {
+    # Rate limiting
+    rate_limit {
+        zone static_api {
+            key {remote_host}
+            events 100
+            window 1m
+        }
+    }
+
+    # Security headers for production
+    header {
+        Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+        Content-Security-Policy "default-src 'self'"
+        X-Content-Type-Options nosniff
+        X-Frame-Options DENY
+        X-XSS-Protection "1; mode=block"
+        Referrer-Policy "strict-origin-when-cross-origin"
+    }
+
+    # Reverse proxy to backend
+    reverse_proxy app:3333
+
+    # Access logs
+    log {
+        output file /var/log/caddy/access.log
+        format json
+    }
+} 
