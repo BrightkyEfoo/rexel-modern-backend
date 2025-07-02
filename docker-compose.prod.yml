@@ -26,16 +26,16 @@ services:
       POSTGRES_DB: ${DB_DATABASE}
       POSTGRES_USER: ${DB_USER}
       POSTGRES_PASSWORD: ${DB_PASSWORD}
-      POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --lc-collate=fr_FR.UTF-8 --lc-ctype=fr_FR.UTF-8"
+      POSTGRES_INITDB_ARGS: '--encoding=UTF-8 --lc-collate=fr_FR.UTF-8 --lc-ctype=fr_FR.UTF-8'
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./backups:/backups
     ports:
-      - "5432:5432"
+      - '5432:5432'
     networks:
       - rexel-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_DATABASE}"]
+      test: ['CMD-SHELL', 'pg_isready -U ${DB_USER} -d ${DB_DATABASE}']
       interval: 10s
       timeout: 5s
       retries: 5
@@ -53,12 +53,12 @@ services:
     volumes:
       - minio_data:/data
     ports:
-      - "9000:9000"
-      - "9001:9001"
+      - '9000:9000'
+      - '9001:9001'
     networks:
       - rexel-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      test: ['CMD', 'curl', '-f', 'http://localhost:9000/minio/health/live']
       interval: 30s
       timeout: 20s
       retries: 3
@@ -73,11 +73,11 @@ services:
     volumes:
       - redis_data:/data
     ports:
-      - "6379:6379"
+      - '6379:6379'
     networks:
       - rexel-network
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ['CMD', 'redis-cli', 'ping']
       interval: 10s
       timeout: 3s
       retries: 5
@@ -100,7 +100,7 @@ services:
       HOST: 0.0.0.0
       LOG_LEVEL: info
       APP_KEY: ${APP_KEY}
-      
+
       # Database
       DB_CONNECTION: pg
       DB_HOST: db
@@ -108,7 +108,7 @@ services:
       DB_USER: ${DB_USER}
       DB_PASSWORD: ${DB_PASSWORD}
       DB_DATABASE: ${DB_DATABASE}
-      
+
       # MinIO
       MINIO_HOST: minio
       MINIO_PORT: 9000
@@ -116,56 +116,48 @@ services:
       MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
       MINIO_USE_SSL: false
       MINIO_BUCKET: ${MINIO_BUCKET}
-      
+
       # Redis
       REDIS_HOST: redis
       REDIS_PORT: 6379
       REDIS_PASSWORD: ${REDIS_PASSWORD:-defaultpassword}
-      
+
       # Auth & Security
       JWT_SECRET: ${JWT_SECRET}
-      
+
       # CORS
       CORS_ORIGINS: ${CORS_ORIGINS}
-      
+
       # Email (optional)
       SMTP_HOST: ${SMTP_HOST}
       SMTP_PORT: ${SMTP_PORT}
       SMTP_USERNAME: ${SMTP_USERNAME}
       SMTP_PASSWORD: ${SMTP_PASSWORD}
       SMTP_FROM: ${SMTP_FROM}
-      
+
       # Frontend
       FRONTEND_URL: ${FRONTEND_URL}
-      
+
       # Storage
       STORAGE_DRIVER: minio
     volumes:
       - app_uploads:/app/uploads
       - ./uploads:/app/uploads
     ports:
-      - "3333:3333"
+      - '3333:3333'
     networks:
       - rexel-network
-    healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3333/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 60s
 
   # Caddy Reverse Proxy
   caddy:
     image: caddy:2-alpine
     container_name: rexel-caddy-prod
     restart: unless-stopped
-    depends_on:
-      app:
-        condition: service_healthy
+    depends_on: [app]
     ports:
-      - "80:80"
-      - "443:443"
-      - "2019:2019"  # Admin API (optional)
+      - '80:80'
+      - '443:443'
+      - '2019:2019' # Admin API (optional)
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
@@ -175,12 +167,10 @@ services:
       - rexel-network
     environment:
       # Enable admin API (optional)
-      CADDY_ADMIN: "0.0.0.0:2019"
+      CADDY_ADMIN: '0.0.0.0:2019'
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/health"]
+      test: ['CMD', 'wget', '--no-verbose', '--tries=1', '--spider', 'http://localhost/health']
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 30s
-
- 
