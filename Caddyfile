@@ -1,7 +1,7 @@
 # Caddyfile for Rexel Modern Backend
 {
     # Global options
-    auto_https off
+    auto_https on
     admin off
     log default {
         output stdout
@@ -16,17 +16,8 @@
         respond "healthy" 200
     }
 
-    # Handle API routes with rate limiting
+    # Handle API routes
     handle /api/* {
-        # Rate limiting for general API calls
-        rate_limit {
-            zone dynamic_api {
-                key {remote_host}
-                events 100
-                window 1m
-            }
-        }
-        
         # Reverse proxy to backend
         reverse_proxy app:3333 {
             # Health check
@@ -42,17 +33,8 @@
         }
     }
 
-    # Handle file uploads with stricter rate limiting
+    # Handle file uploads with larger request body limit
     handle /api/files* {
-        # Stricter rate limiting for uploads
-        rate_limit {
-            zone dynamic_uploads {
-                key {remote_host}
-                events 10
-                window 1m
-            }
-        }
-        
         # Larger request body limit for file uploads
         request_body {
             max_size 50MB
@@ -125,15 +107,6 @@
 }
 
 staging-api.kesimarket.com {
-    # Rate limiting
-    rate_limit {
-        zone static_api {
-            key {remote_host}
-            events 100
-            window 1m
-        }
-    }
-
     # Security headers for production
     header {
         Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
