@@ -144,12 +144,43 @@ jobs:
               echo "✅ Docker Compose is available"
             fi
             
+            # Setup shared Docker network for frontend/backend communication
+            echo "=== Setting up shared Docker network ==="
+            NETWORK_NAME="rexel-net"
+            
+            # Determine if we need to use sudo
+            USE_SUDO=""
+            if ! docker ps &> /dev/null; then
+              USE_SUDO="sudo "
+              echo "⚠️  Using sudo for Docker commands"
+            fi
+            
+            # Check if network exists
+            if ${USE_SUDO}docker network ls | grep -q $NETWORK_NAME; then
+              echo "✅ Network '$NETWORK_NAME' already exists"
+              ${USE_SUDO}docker network inspect $NETWORK_NAME --format '{{.Name}}: {{.Driver}}'
+            else
+              echo "🔧 Creating shared network '$NETWORK_NAME'..."
+              ${USE_SUDO}docker network create $NETWORK_NAME --driver bridge
+              if [ $? -eq 0 ]; then
+                echo "✅ Network '$NETWORK_NAME' created successfully!"
+              else
+                echo "❌ Failed to create network '$NETWORK_NAME'"
+                exit 1
+              fi
+            fi
+            
+            # Verify network details
+            echo "📋 Network details:"
+            ${USE_SUDO}docker network inspect $NETWORK_NAME --format '{{json .}}' | grep -E '"Name"|"Driver"|"Scope"' || true
+            
             # Final verification
             echo "=== Final Docker Environment Status ==="
             docker --version || sudo docker --version
             docker compose version || docker-compose --version || sudo docker compose version
             echo "Docker daemon status: $(sudo systemctl is-active docker)"
             echo "User groups: $(groups $USER)"
+            echo "Shared network status: $(${USE_SUDO}docker network ls | grep $NETWORK_NAME || echo 'Not found')"
 
   checkout:
     name: Checkout Code
@@ -188,26 +219,25 @@ jobs:
           LOG_LEVEL=info
           APP_KEY=${{ secrets.APP_KEY }}
           
-          # Database Configuration
+          # Database Configuration (Internal PostgreSQL)
           DB_CONNECTION=pg
-          DB_HOST=${{ secrets.DB_HOST }}
-          DB_PORT=${{ secrets.DB_PORT }}
+          DB_HOST=db
+          DB_PORT=5432
           DB_USER=${{ secrets.DB_USER }}
           DB_PASSWORD=${{ secrets.DB_PASSWORD }}
           DB_DATABASE=${{ secrets.DB_DATABASE }}
           
-          # MinIO Configuration
-          MINIO_HOST=${{ secrets.MINIO_HOST }}
-          MINIO_PORT=${{ secrets.MINIO_PORT }}
-          MINIO_ROOT_USER=${{ secrets.MINIO_ROOT_USER }}
-          MINIO_ROOT_PASSWORD=${{ secrets.MINIO_ROOT_PASSWORD }}
+          # MinIO Configuration (Internal Service)
+          MINIO_HOST=minio
+          MINIO_PORT=9000
           MINIO_ACCESS_KEY=${{ secrets.MINIO_ACCESS_KEY }}
           MINIO_SECRET_KEY=${{ secrets.MINIO_SECRET_KEY }}
-          MINIO_USE_SSL=${{ secrets.MINIO_USE_SSL }}
+          MINIO_USE_SSL=false
+          MINIO_BUCKET=${{ secrets.MINIO_BUCKET }}
           
-          # Redis Configuration (optional)
-          REDIS_HOST=${{ secrets.REDIS_HOST }}
-          REDIS_PORT=${{ secrets.REDIS_PORT }}
+          # Redis Configuration (Internal Service)
+          REDIS_HOST=redis
+          REDIS_PORT=6379
           REDIS_PASSWORD=${{ secrets.REDIS_PASSWORD }}
           
           # JWT Configuration
@@ -397,13 +427,27 @@ jobs:
             STORAGE_DRIVER=minio
             EOF
             
-            # Create rexel-network if it doesn't exist
-            if ! ${USE_SUDO}docker network ls | grep -q rexel-network; then
-              echo 'Creating rexel-network...'
-              ${USE_SUDO}docker network create rexel-network
-            else
-              echo 'rexel-network already exists'
-            fi
+            # Create .env file for docker-compose
+            cat > .env << 'EOF'
+            DB_USER=${{ secrets.DB_USER }}
+            DB_PASSWORD=${{ secrets.DB_PASSWORD }}
+            DB_DATABASE=${{ secrets.DB_DATABASE }}
+            MINIO_ACCESS_KEY=${{ secrets.MINIO_ACCESS_KEY }}
+            MINIO_SECRET_KEY=${{ secrets.MINIO_SECRET_KEY }}
+            MINIO_BUCKET=${{ secrets.MINIO_BUCKET }}
+            REDIS_PASSWORD=${{ secrets.REDIS_PASSWORD }}
+            APP_KEY=${{ secrets.APP_KEY }}
+            JWT_SECRET=${{ secrets.JWT_SECRET }}
+            CORS_ORIGINS=${{ secrets.CORS_ORIGINS }}
+            FRONTEND_URL=${{ secrets.FRONTEND_URL }}
+            SMTP_HOST=${{ secrets.SMTP_HOST }}
+            SMTP_PORT=${{ secrets.SMTP_PORT }}
+            SMTP_USERNAME=${{ secrets.SMTP_USERNAME }}
+            SMTP_PASSWORD=${{ secrets.SMTP_PASSWORD }}
+            SMTP_FROM=${{ secrets.SMTP_FROM }}
+            EOF
+            
+            echo "✅ Environment file created for docker-compose"
             
             # Load the new Docker image
             ${USE_SUDO}docker load < images/rexel-backend-prod-current.tar
@@ -420,11 +464,30 @@ jobs:
             echo 'Starting infrastructure services...'
             ${USE_SUDO}docker compose -f docker-compose.prod.yml up -d db minio redis
             
-            # Wait for database to be ready
+            # Wait for database to be ready with better error handling
             echo "Waiting for database to be ready..."
-            until ${USE_SUDO}docker compose -f docker-compose.prod.yml exec -T db pg_isready -U ${{ secrets.DB_USER }}; do
-              echo "Database not ready yet, waiting..."
-              sleep 2
+            MAX_ATTEMPTS=30
+            ATTEMPT=1
+            
+            while [ $ATTEMPT -le $MAX_ATTEMPTS ]; do
+              echo "🔍 Database check attempt $ATTEMPT/$MAX_ATTEMPTS..."
+              
+              if ${USE_SUDO}docker compose -f docker-compose.prod.yml exec -T db pg_isready -U ${{ secrets.DB_USER }} -d ${{ secrets.DB_DATABASE }}; then
+                echo "✅ Database is ready!"
+                break
+              else
+                if [ $ATTEMPT -eq $MAX_ATTEMPTS ]; then
+                  echo "❌ Database failed to start after $MAX_ATTEMPTS attempts"
+                  echo "📋 Database container logs:"
+                  ${USE_SUDO}docker compose -f docker-compose.prod.yml logs db
+                  echo "📋 Database container status:"
+                  ${USE_SUDO}docker ps -f name=rexel-postgres-prod
+                  exit 1
+                fi
+                echo "⏳ Database not ready yet, waiting 5 seconds..."
+                sleep 5
+              fi
+              ATTEMPT=$((ATTEMPT + 1))
             done
             
             # Create database if not exists

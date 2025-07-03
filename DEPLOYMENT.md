@@ -85,7 +85,25 @@ Le workflow déploie l'architecture suivante :
 └── minio-data/
 ```
 
-## 🚀 Déploiement Automatique
+## 🚀 Déploiement
+
+### ⚠️ Prérequis : Réseau Docker Partagé
+
+**IMPORTANT**: Avant le premier déploiement, le réseau `rexel-net` doit être créé sur le VPS.
+
+#### Solution automatique (workflow GitHub)
+Le workflow crée automatiquement le réseau lors du déploiement.
+
+#### Solution manuelle
+```bash
+# Sur le VPS
+./scripts/setup-docker-network.sh
+
+# Ou manuellement
+docker network create rexel-net
+```
+
+Si vous obtenez l'erreur `network rexel-net declared as external, but could not be found`, c'est que ce réseau n'existe pas encore. Automatique
 
 ### Déploiement par push
 ```bash
