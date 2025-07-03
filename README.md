@@ -197,6 +197,22 @@ docker-compose logs -f
 
 # Redémarrer les services
 docker-compose restart
+```
+
+## 📚 Documentation Complète
+
+### Guides de Déploiement
+- **[DEPLOYMENT.md](./DEPLOYMENT.md)** - Guide complet de déploiement production
+- **[GITHUB-SECRETS.md](./GITHUB-SECRETS.md)** - Configuration des secrets GitHub Actions
+- **[CADDY.md](./CADDY.md)** - Configuration du reverse proxy Caddy
+
+### Scripts Utiles
+- **[scripts/validate-environment.sh](./scripts/validate-environment.sh)** - Validation de l'environnement
+- **[scripts/setup-docker-network.sh](./scripts/setup-docker-network.sh)** - Configuration réseau Docker
+- **[scripts/setup-directories.sh](./scripts/setup-directories.sh)** - Préparation des dossiers VPS
+
+### Architecture Partagée
+- **[../rexel-modern/DEPLOYMENT-SHARED.md](../rexel-modern/DEPLOYMENT-SHARED.md)** - Architecture Caddy partagée Frontend/Backend
 
 # Arrêter les services
 docker-compose down

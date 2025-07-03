@@ -449,6 +449,28 @@ jobs:
             
             echo "✅ Environment file created for docker-compose"
             
+            # Create shared Docker network if it doesn't exist
+            echo "🌐 Checking shared Docker network..."
+            NETWORK_NAME="rexel-net"
+            
+            if ${USE_SUDO}docker network ls | grep -q "$NETWORK_NAME"; then
+              echo "✅ Network '$NETWORK_NAME' already exists"
+            else
+              echo "🔧 Creating shared network '$NETWORK_NAME'..."
+              if ${USE_SUDO}docker network create "$NETWORK_NAME" --driver bridge; then
+                echo "✅ Network '$NETWORK_NAME' created successfully!"
+              else
+                echo "❌ Failed to create network '$NETWORK_NAME'"
+                exit 1
+              fi
+            fi
+            
+            # Verify network exists
+            ${USE_SUDO}docker network inspect "$NETWORK_NAME" --format 'Network: {{.Name}} ({{.Driver}})' || {
+              echo "❌ Network verification failed"
+              exit 1
+            }
+            
             # Load the new Docker image
             ${USE_SUDO}docker load < images/rexel-backend-prod-current.tar
             
@@ -459,6 +481,17 @@ jobs:
             # Stop existing services
             echo 'Stopping existing services...'
             ${USE_SUDO}docker compose -f docker-compose.prod.yml down || echo 'No existing services to stop'
+            
+            # Final network verification before starting services
+            echo "🔍 Final network verification before starting services..."
+            if ! ${USE_SUDO}docker network ls | grep -q "rexel-net"; then
+              echo "❌ CRITICAL: Network rexel-net still not found after creation attempt!"
+              echo "📋 Available networks:"
+              ${USE_SUDO}docker network ls
+              exit 1
+            fi
+            
+            echo "✅ Network rexel-net confirmed ready"
             
             # Start infrastructure services first (db, minio, redis)
             echo 'Starting infrastructure services...'
@@ -501,12 +534,26 @@ jobs:
               sleep 2
             done
             
-            # Create MinIO bucket if not exists
-            echo "Creating MinIO bucket ${{ secrets.MINIO_BUCKET }} if not exists..."
-            ${USE_SUDO}docker compose -f docker-compose.prod.yml exec -T minio mc mb local/${{ secrets.MINIO_BUCKET }} || echo "Bucket already exists"
+            # Create MinIO bucket if not exists (with fallback)
+            BUCKET_NAME="${{ secrets.MINIO_BUCKET }}"
+            if [ -z "$BUCKET_NAME" ]; then
+              BUCKET_NAME="rexel-storage"
+              echo "⚠️  MINIO_BUCKET not set, using default: $BUCKET_NAME"
+            fi
+            
+            echo "Creating MinIO bucket '$BUCKET_NAME' if not exists..."
+            if ${USE_SUDO}docker compose -f docker-compose.prod.yml exec -T minio mc mb local/$BUCKET_NAME; then
+              echo "✅ Bucket '$BUCKET_NAME' created successfully"
+            else
+              echo "📝 Bucket '$BUCKET_NAME' might already exist"
+            fi
             
             # Set bucket policy to public read for public files
-            ${USE_SUDO}docker compose -f docker-compose.prod.yml exec -T minio mc anonymous set public local/${{ secrets.MINIO_BUCKET }}/public || echo "Could not set public policy"
+            if ${USE_SUDO}docker compose -f docker-compose.prod.yml exec -T minio mc anonymous set public local/$BUCKET_NAME/public; then
+              echo "✅ Public policy set for $BUCKET_NAME/public"
+            else
+              echo "📝 Could not set public policy (bucket might not support it)"
+            fi
             
             # Verify database is accessible
             echo "Verifying database is accessible..."
