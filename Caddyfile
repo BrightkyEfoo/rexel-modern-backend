@@ -1,4 +1,4 @@
-# Caddyfile for Rexel Modern Backend
+# Caddyfile for Rexel Modern - Frontend & Backend
 {
     # Global options
     admin off
@@ -8,42 +8,88 @@
     }
 }
 
-# Main server block
-:80 {
-    # Handle health check
-    handle /health {
-        respond "healthy" 200
+# PRODUCTION DOMAINS
+
+# Frontend - kesimarket.com
+kesimarket.com {
+    # Security headers for production
+    header {
+        Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+        X-Content-Type-Options nosniff
+        X-Frame-Options SAMEORIGIN
+        X-XSS-Protection "1; mode=block"
+        Referrer-Policy "strict-origin-when-cross-origin"
+        # Remove server information
+        -Server
     }
 
-    # Handle API routes
-    handle /api/* {
-        # Reverse proxy to backend
-        reverse_proxy app:3333 {
-            # Health check
-            health_uri /health
-            health_interval 30s
-            health_timeout 10s
-            
-            # Headers
-            header_up Host {upstream_hostport}
-            header_up X-Real-IP {remote_host}
-            header_up X-Forwarded-For {remote_host}
-            header_up X-Forwarded-Proto {scheme}
+    # Compress responses
+    encode {
+        gzip
+        brotli
+    }
+
+    # Reverse proxy to frontend container
+    reverse_proxy frontend:3000 {
+        header_up Host {upstream_hostport}
+        header_up X-Real-IP {remote_host}
+        header_up X-Forwarded-For {remote_host}
+        header_up X-Forwarded-Proto {scheme}
+    }
+
+    # Access logs
+    log {
+        output file /var/log/caddy/frontend-access.log
+        format json
+    }
+}
+
+# API - api.kesimarket.com
+api.kesimarket.com {
+    # Security headers for production API
+    header {
+        Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+        X-Content-Type-Options nosniff
+        X-Frame-Options DENY
+        X-XSS-Protection "1; mode=block"
+        Referrer-Policy "strict-origin-when-cross-origin"
+        # Remove server information
+        -Server
+        # CORS headers for production
+        Access-Control-Allow-Origin "https://kesimarket.com"
+        Access-Control-Allow-Methods "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+        Access-Control-Allow-Headers "Content-Type, Authorization"
+        Access-Control-Allow-Credentials "true"
+    }
+
+    # Rate limiting for API
+    rate_limit {
+        zone api_zone {
+            key    {remote_host}
+            events 100
+            window 1m
         }
     }
 
     # Handle file uploads with larger request body limit
-    handle /api/files* {
-        # Larger request body limit for file uploads
+    @uploads {
+        path /api/files* /files*
+    }
+    handle @uploads {
         request_body {
             max_size 50MB
         }
         
+        # Rate limiting for uploads (more restrictive)
+        rate_limit {
+            zone upload_zone {
+                key    {remote_host}
+                events 10
+                window 1m
+            }
+        }
+        
         reverse_proxy app:3333 {
-            health_uri /health
-            health_interval 30s
-            health_timeout 10s
-            
             # Extended timeouts for uploads
             transport http {
                 dial_timeout 60s
@@ -57,12 +103,191 @@
         }
     }
 
-    # Security headers
+    # Handle CORS preflight requests
+    @options {
+        method OPTIONS
+    }
+    handle @options {
+        respond 200
+    }
+
+    # Handle all other API routes
+    reverse_proxy app:3333 {
+        header_up Host {upstream_hostport}
+        header_up X-Real-IP {remote_host}
+        header_up X-Forwarded-For {remote_host}
+        header_up X-Forwarded-Proto {scheme}
+    }
+
+    # Access logs
+    log {
+        output file /var/log/caddy/api-access.log
+        format json
+    }
+}
+
+# STAGING DOMAINS
+
+# Frontend - staging.kesimarket.com
+staging.kesimarket.com {
+    # Security headers for staging
     header {
+        Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+        X-Content-Type-Options nosniff
+        X-Frame-Options SAMEORIGIN
+        X-XSS-Protection "1; mode=block"
+        Referrer-Policy "strict-origin-when-cross-origin"
         # Remove server information
         -Server
+        # Staging indicator
+        X-Environment "staging"
+    }
+
+    # Compress responses
+    encode {
+        gzip
+        brotli
+    }
+
+    # Reverse proxy to frontend container
+    reverse_proxy frontend:3000 {
+        header_up Host {upstream_hostport}
+        header_up X-Real-IP {remote_host}
+        header_up X-Forwarded-For {remote_host}
+        header_up X-Forwarded-Proto {scheme}
+    }
+
+    # Access logs
+    log {
+        output file /var/log/caddy/staging-frontend-access.log
+        format json
+    }
+}
+
+# API - staging-api.kesimarket.com
+staging-api.kesimarket.com {
+    # Security headers for staging API
+    header {
+        Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+        X-Content-Type-Options nosniff
+        X-Frame-Options DENY
+        X-XSS-Protection "1; mode=block"
+        Referrer-Policy "strict-origin-when-cross-origin"
+        # Remove server information
+        -Server
+        # Staging indicator
+        X-Environment "staging"
+        # CORS headers for staging
+        Access-Control-Allow-Origin "https://staging.kesimarket.com"
+        Access-Control-Allow-Methods "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+        Access-Control-Allow-Headers "Content-Type, Authorization"
+        Access-Control-Allow-Credentials "true"
+    }
+
+    # Rate limiting for staging API (more permissive)
+    rate_limit {
+        zone staging_api_zone {
+            key    {remote_host}
+            events 200
+            window 1m
+        }
+    }
+
+    # Handle file uploads with larger request body limit
+    @uploads {
+        path /api/files* /files*
+    }
+    handle @uploads {
+        request_body {
+            max_size 50MB
+        }
         
-        # Security headers
+        # Rate limiting for uploads (more permissive for staging)
+        rate_limit {
+            zone staging_upload_zone {
+                key    {remote_host}
+                events 20
+                window 1m
+            }
+        }
+        
+        reverse_proxy app:3333 {
+            # Extended timeouts for uploads
+            transport http {
+                dial_timeout 60s
+                response_header_timeout 60s
+            }
+            
+            header_up Host {upstream_hostport}
+            header_up X-Real-IP {remote_host}
+            header_up X-Forwarded-For {remote_host}
+            header_up X-Forwarded-Proto {scheme}
+        }
+    }
+
+    # Handle CORS preflight requests
+    @options {
+        method OPTIONS
+    }
+    handle @options {
+        respond 200
+    }
+
+    # Handle all other API routes
+    reverse_proxy app:3333 {
+        header_up Host {upstream_hostport}
+        header_up X-Real-IP {remote_host}
+        header_up X-Forwarded-For {remote_host}
+        header_up X-Forwarded-Proto {scheme}
+    }
+
+    # Access logs
+    log {
+        output file /var/log/caddy/staging-api-access.log
+        format json
+    }
+}
+
+# DEVELOPMENT - Local port 80
+:80 {
+    # Handle health check
+    handle /health {
+        respond "healthy" 200
+    }
+
+    # Handle API routes (for local development)
+    handle /api/* {
+        # Reverse proxy to backend
+        reverse_proxy app:3333 {
+            header_up Host {upstream_hostport}
+            header_up X-Real-IP {remote_host}
+            header_up X-Forwarded-For {remote_host}
+            header_up X-Forwarded-Proto {scheme}
+        }
+    }
+
+    # Handle file uploads with larger request body limit
+    handle /api/files* {
+        request_body {
+            max_size 50MB
+        }
+        
+        reverse_proxy app:3333 {
+            transport http {
+                dial_timeout 60s
+                response_header_timeout 60s
+            }
+            
+            header_up Host {upstream_hostport}
+            header_up X-Real-IP {remote_host}
+            header_up X-Forwarded-For {remote_host}
+            header_up X-Forwarded-Proto {scheme}
+        }
+    }
+
+    # Security headers for development
+    header {
+        -Server
         X-Content-Type-Options nosniff
         X-Frame-Options DENY
         X-XSS-Protection "1; mode=block"
@@ -84,30 +309,9 @@
         respond 200
     }
 
-    # Logging
+    # Logging for development
     log {
         output stdout
         format console
-    }
-}
-
-staging-api.kesimarket.com {
-    # Security headers for production
-    header {
-        Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
-        Content-Security-Policy "default-src 'self'"
-        X-Content-Type-Options nosniff
-        X-Frame-Options DENY
-        X-XSS-Protection "1; mode=block"
-        Referrer-Policy "strict-origin-when-cross-origin"
-    }
-
-    # Reverse proxy to backend
-    reverse_proxy app:3333
-
-    # Access logs
-    log {
-        output file /var/log/caddy/access.log
-        format json
     }
 } 

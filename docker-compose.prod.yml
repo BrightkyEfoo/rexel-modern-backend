@@ -1,6 +1,6 @@
 networks:
-  rexel-network:
-    driver: bridge
+  rexel-net:
+    external: true
 
 volumes:
   postgres_data:
@@ -33,7 +33,7 @@ services:
     ports:
       - '5432:5432'
     networks:
-      - rexel-network
+      - rexel-net
     healthcheck:
       test: ['CMD-SHELL', 'pg_isready -U ${DB_USER} -d ${DB_DATABASE}']
       interval: 10s
@@ -56,7 +56,7 @@ services:
       - '9000:9000'
       - '9001:9001'
     networks:
-      - rexel-network
+      - rexel-net
     healthcheck:
       test: ['CMD', 'curl', '-f', 'http://localhost:9000/minio/health/live']
       interval: 30s
@@ -75,7 +75,7 @@ services:
     ports:
       - '6379:6379'
     networks:
-      - rexel-network
+      - rexel-net
     healthcheck:
       test: ['CMD', 'redis-cli', 'ping']
       interval: 10s
@@ -146,7 +146,7 @@ services:
     ports:
       - '3333:3333'
     networks:
-      - rexel-network
+      - rexel-net
 
   # Caddy Reverse Proxy
   caddy:
@@ -165,7 +165,7 @@ services:
       - caddy_config:/config
       - ./logs:/var/log/caddy
     networks:
-      - rexel-network
+      - rexel-net
     environment:
       # Enable admin API (optional)
       CADDY_ADMIN: '0.0.0.0:2019'
