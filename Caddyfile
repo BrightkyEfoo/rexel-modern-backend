@@ -59,15 +59,6 @@ api.kesimarket.com {
         Access-Control-Allow-Credentials "true"
     }
 
-    # Rate limiting for API
-    rate_limit {
-        zone api_zone {
-            key    {remote_host}
-            events 100
-            window 1m
-        }
-    }
-
     # Handle file uploads with larger request body limit
     @uploads {
         path /api/files* /files*
@@ -75,15 +66,6 @@ api.kesimarket.com {
     handle @uploads {
         request_body {
             max_size 50MB
-        }
-        
-        # Rate limiting for uploads (more restrictive)
-        rate_limit {
-            zone upload_zone {
-                key    {remote_host}
-                events 10
-                window 1m
-            }
         }
         
         reverse_proxy app:3333 {
@@ -178,15 +160,6 @@ staging-api.kesimarket.com {
         Access-Control-Allow-Credentials "true"
     }
 
-    # Rate limiting for staging API (more permissive)
-    rate_limit {
-        zone staging_api_zone {
-            key    {remote_host}
-            events 200
-            window 1m
-        }
-    }
-
     # Handle file uploads with larger request body limit
     @uploads {
         path /api/files* /files*
@@ -194,15 +167,6 @@ staging-api.kesimarket.com {
     handle @uploads {
         request_body {
             max_size 50MB
-        }
-        
-        # Rate limiting for uploads (more permissive for staging)
-        rate_limit {
-            zone staging_upload_zone {
-                key    {remote_host}
-                events 20
-                window 1m
-            }
         }
         
         reverse_proxy app:3333 {
