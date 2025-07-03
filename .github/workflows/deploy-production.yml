@@ -453,23 +453,35 @@ jobs:
             echo "🌐 Checking shared Docker network..."
             NETWORK_NAME="rexel-net"
             
-            if ${USE_SUDO}docker network ls | grep -q "$NETWORK_NAME"; then
-              echo "✅ Network '$NETWORK_NAME' already exists"
+            echo "📋 Current networks:"
+            ${USE_SUDO}docker network ls
+            
+            # More precise network detection using exact name match
+            if ${USE_SUDO}docker network inspect "$NETWORK_NAME" >/dev/null 2>&1; then
+              echo "✅ Network '$NETWORK_NAME' already exists and is accessible"
+              ${USE_SUDO}docker network inspect "$NETWORK_NAME" --format 'Network: {{.Name}} ({{.Driver}})'
             else
-              echo "🔧 Creating shared network '$NETWORK_NAME'..."
+              echo "🔧 Network '$NETWORK_NAME' not found, creating..."
               if ${USE_SUDO}docker network create "$NETWORK_NAME" --driver bridge; then
                 echo "✅ Network '$NETWORK_NAME' created successfully!"
+                
+                # Verify creation
+                if ${USE_SUDO}docker network inspect "$NETWORK_NAME" >/dev/null 2>&1; then
+                  echo "✅ Network creation verified"
+                  ${USE_SUDO}docker network inspect "$NETWORK_NAME" --format 'Network: {{.Name}} ({{.Driver}})'
+                else
+                  echo "❌ Network verification failed after creation"
+                  echo "📋 Available networks after creation:"
+                  ${USE_SUDO}docker network ls
+                  exit 1
+                fi
               else
                 echo "❌ Failed to create network '$NETWORK_NAME'"
+                echo "📋 Docker network error details:"
+                ${USE_SUDO}docker network create "$NETWORK_NAME" --driver bridge || true
                 exit 1
               fi
             fi
-            
-            # Verify network exists
-            ${USE_SUDO}docker network inspect "$NETWORK_NAME" --format 'Network: {{.Name}} ({{.Driver}})' || {
-              echo "❌ Network verification failed"
-              exit 1
-            }
             
             # Load the new Docker image
             ${USE_SUDO}docker load < images/rexel-backend-prod-current.tar
