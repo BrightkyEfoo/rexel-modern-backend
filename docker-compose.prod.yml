@@ -19,7 +19,7 @@ volumes:
 services:
   # PostgreSQL Database
   db:
-    image: postgres:15-alpine
+    image: postgres:16-alpine
     container_name: rexel-postgres-prod
     restart: unless-stopped
     environment:
@@ -84,7 +84,7 @@ services:
 
   # Application Backend
   app:
-    image: rexel-backend-prod:latest
+    image: rexel-modern-backend-app:latest
     container_name: rexel-backend-prod
     restart: unless-stopped
     depends_on:
