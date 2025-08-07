@@ -84,7 +84,7 @@ services:
 
   # Application Backend
   app:
-    image: rexel-modern-backend-app:latest
+    image: rexel-backend-prod:latest
     container_name: rexel-backend-prod
     restart: unless-stopped
     depends_on:
