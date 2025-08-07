@@ -204,8 +204,8 @@ export default class CategorySeeder extends BaseSeeder {
         name: mainCat.name,
         slug: mainCat.slug,
         description: mainCat.description,
-        is_active: true,
-        parent_id: null,
+        isActive: true,
+        parentId: null,
       })
       createdCategories.push(parentCategory)
 
@@ -216,8 +216,8 @@ export default class CategorySeeder extends BaseSeeder {
           name: subCat.name,
           slug: subCat.slug,
           description: subCat.description,
-          is_active: true,
-          parent_id: parentCategory.id,
+          isActive: true,
+          parentId: parentCategory.id,
         })
         createdCategories.push(subCategory)
       }

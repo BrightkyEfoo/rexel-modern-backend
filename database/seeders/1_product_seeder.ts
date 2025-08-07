@@ -205,6 +205,8 @@ export default class ProductSeeder extends BaseSeeder {
   private generateSpecifications(productType: any, productName: string): Record<string, any> {
     const specs: Record<string, any> = {}
 
+    console.log(productType, productName)
+
     if (productType.prefix === 'Disjoncteur') {
       specs['Courant nominal'] =
         productType.amperage?.[Math.floor(Math.random() * productType.amperage.length)] || '16A'
@@ -244,6 +246,8 @@ export default class ProductSeeder extends BaseSeeder {
 
   private getSpecificMetadata(productType: any, productName: string): Record<string, any> {
     const metadata: Record<string, any> = {}
+
+    console.log(productName, productType.prefix)
 
     if (productType.prefix === 'Disjoncteur') {
       metadata.type_disjoncteur =

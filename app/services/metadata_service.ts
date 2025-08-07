@@ -1,4 +1,3 @@
-import Product from '#models/product'
 import ProductMetadata from '#models/product_metadata'
 
 export default class MetadataService {
@@ -52,10 +51,7 @@ export default class MetadataService {
    * Supprime une métadonnée
    */
   static async removeMetadata(productId: number, key: string): Promise<void> {
-    await ProductMetadata.query()
-      .where('product_id', productId)
-      .where('key', key)
-      .delete()
+    await ProductMetadata.query().where('product_id', productId).where('key', key).delete()
   }
 
   /**
@@ -102,17 +98,13 @@ export default class MetadataService {
 
       if (Array.isArray(value)) {
         // Filtre multiple (ex: couleurs = ['rouge', 'bleu'])
-        query.whereHas('metadata', (metadataQuery) => {
-          metadataQuery
-            .where('key', key)
-            .whereIn('value', value)
+        query.whereHas('metadata', (metadataQuery: any) => {
+          metadataQuery.where('key', key).whereIn('value', value)
         })
       } else {
         // Filtre simple
-        query.whereHas('metadata', (metadataQuery) => {
-          metadataQuery
-            .where('key', key)
-            .where('value', value.toString())
+        query.whereHas('metadata', (metadataQuery: any) => {
+          metadataQuery.where('key', key).where('value', value.toString())
         })
       }
     }
@@ -139,4 +131,4 @@ export default class MetadataService {
 
     await this.setMultipleMetadata(productId, defaultMetadata)
   }
-} 
+}
