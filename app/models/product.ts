@@ -1,9 +1,10 @@
 import { DateTime } from 'luxon'
-import { BaseModel, column, belongsTo, hasMany } from '@adonisjs/lucid/orm'
-import type { BelongsTo, HasMany } from '@adonisjs/lucid/types/relations'
+import { BaseModel, column, belongsTo, hasMany, manyToMany } from '@adonisjs/lucid/orm'
+import type { BelongsTo, HasMany, ManyToMany } from '@adonisjs/lucid/types/relations'
 import Category from './category.js'
 import Brand from './brand.js'
 import File from './file.js'
+import ProductMetadata from './product_metadata.js'
 
 export default class Product extends BaseModel {
   @column({ isPrimary: true })
@@ -46,9 +47,6 @@ export default class Product extends BaseModel {
   declare isActive: boolean
 
   @column()
-  declare categoryId: number | null
-
-  @column()
   declare brandId: number | null
 
   @column()
@@ -61,8 +59,13 @@ export default class Product extends BaseModel {
   declare updatedAt: DateTime
 
   // Relations
-  @belongsTo(() => Category)
-  declare category: BelongsTo<typeof Category>
+  @manyToMany(() => Category, {
+    pivotTable: 'product_categories',
+    pivotForeignKey: 'product_id',
+    pivotRelatedForeignKey: 'category_id',
+    pivotColumns: ['sort_order'],
+  })
+  declare categories: ManyToMany<typeof Category>
 
   @belongsTo(() => Brand)
   declare brand: BelongsTo<typeof Brand>
@@ -72,4 +75,7 @@ export default class Product extends BaseModel {
     onQuery: (query) => query.where('fileable_type', 'Product'),
   })
   declare files: HasMany<typeof File>
+
+  @hasMany(() => ProductMetadata)
+  declare metadata: HasMany<typeof ProductMetadata>
 }

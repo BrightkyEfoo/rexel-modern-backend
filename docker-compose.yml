@@ -23,12 +23,10 @@ services:
     image: postgres:16-alpine
     ports:
       - '${DB_PORT:-5432}:5432'
-    env_file:
-      - .env
     environment:
-      - POSTGRES_USER=${DB_USER:-postgres}
-      - POSTGRES_PASSWORD=${DB_PASSWORD:-postgres}
-      - POSTGRES_DB=${DB_DATABASE:-rexel_dev}
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=rexel_postgres_password
+      - POSTGRES_DB=rexel
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
@@ -39,8 +37,8 @@ services:
     env_file:
       - .env
     ports:
-      - '${MINIO_PORT:-9000}:9000'  # API
-      - '${MINIO_CONSOLE_PORT:-9001}:9001'  # Console
+      - '${MINIO_PORT:-9000}:9000' # API
+      - '${MINIO_CONSOLE_PORT:-9001}:9001' # Console
     environment:
       - MINIO_ROOT_USER=${MINIO_ROOT_USER:-minioadmin}
       - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD:-minioadmin123}

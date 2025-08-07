@@ -22,8 +22,6 @@ export default class extends BaseSchema {
       table.json('specifications').defaultTo({})
 
       // Relations
-      table.integer('category_id').unsigned().nullable()
-      table.foreign('category_id').references('id').inTable('categories').onDelete('SET NULL')
       table.integer('brand_id').unsigned().nullable()
       table.foreign('brand_id').references('id').inTable('brands').onDelete('SET NULL')
 

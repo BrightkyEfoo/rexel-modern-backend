@@ -1,5 +1,6 @@
 import BaseRepository from './base_repository.js'
 import Product from '../models/product.js'
+import MetadataService from '../services/metadata_service.js'
 
 export default class ProductRepository extends BaseRepository<typeof Product> {
   constructor() {
@@ -10,7 +11,11 @@ export default class ProductRepository extends BaseRepository<typeof Product> {
    * Récupère les produits avec relations
    */
   async findAllWithRelations(): Promise<Product[]> {
-    return Product.query().preload('category').preload('brand').preload('files')
+    return Product.query()
+      .preload('categories')
+      .preload('brand')
+      .preload('files')
+      .preload('metadata')
   }
 
   /**
@@ -19,9 +24,10 @@ export default class ProductRepository extends BaseRepository<typeof Product> {
   async findBySlugWithRelations(slug: string): Promise<Product | null> {
     return Product.query()
       .where('slug', slug)
-      .preload('category')
+      .preload('categories')
       .preload('brand')
       .preload('files')
+      .preload('metadata')
       .first()
   }
 
@@ -29,14 +35,25 @@ export default class ProductRepository extends BaseRepository<typeof Product> {
    * Récupère les produits par catégorie
    */
   async findByCategory(categoryId: number): Promise<Product[]> {
-    return Product.query().where('category_id', categoryId).preload('brand').preload('files')
+    return Product.query()
+      .whereHas('categories', (query) => {
+        query.where('categories.id', categoryId)
+      })
+      .preload('categories')
+      .preload('brand')
+      .preload('files')
+      .preload('metadata')
   }
 
   /**
    * Récupère les produits par marque
    */
   async findByBrand(brandId: number): Promise<Product[]> {
-    return Product.query().where('brand_id', brandId).preload('category').preload('files')
+    return Product.query()
+      .where('brand_id', brandId)
+      .preload('categories')
+      .preload('files')
+      .preload('metadata')
   }
 
   /**
@@ -46,9 +63,10 @@ export default class ProductRepository extends BaseRepository<typeof Product> {
     return Product.query()
       .where('name', 'ilike', `%${query}%`)
       .orWhere('description', 'ilike', `%${query}%`)
-      .preload('category')
+      .preload('categories')
       .preload('brand')
       .preload('files')
+      .preload('metadata')
   }
 
   /**
@@ -63,9 +81,10 @@ export default class ProductRepository extends BaseRepository<typeof Product> {
     const query = Product.query()
       .where('is_featured', true)
       .where('is_active', true)
-      .preload('category')
+      .preload('categories')
       .preload('brand')
       .preload('files')
+      .preload('metadata')
 
     // Application du tri
     const allowedSortFields = [
@@ -92,9 +111,10 @@ export default class ProductRepository extends BaseRepository<typeof Product> {
   async findActiveWithPagination(page: number = 1, perPage: number = 20) {
     return Product.query()
       .where('is_active', true)
-      .preload('category')
+      .preload('categories')
       .preload('brand')
       .preload('files')
+      .preload('metadata')
       .paginate(page, perPage)
   }
 
@@ -109,15 +129,21 @@ export default class ProductRepository extends BaseRepository<typeof Product> {
     filters: {
       search?: string
       categoryId?: number
+      categoryIds?: number[]
       brandId?: number
       isFeatured?: boolean
+      isActive?: boolean
+      minPrice?: number
+      maxPrice?: number
+      inStock?: boolean
+      metadata?: Record<string, string | number | boolean | string[]>
     } = {}
   ) {
     const query = Product.query()
-      .where('is_active', true)
-      .preload('category')
+      .preload('categories')
       .preload('brand')
       .preload('files')
+      .preload('metadata')
 
     // Application des filtres
     if (filters.search) {
@@ -130,8 +156,18 @@ export default class ProductRepository extends BaseRepository<typeof Product> {
       })
     }
 
+    // Filtre par catégorie unique
     if (filters.categoryId) {
-      query.where('category_id', filters.categoryId)
+      query.whereHas('categories', (categoryQuery) => {
+        categoryQuery.where('categories.id', filters.categoryId!)
+      })
+    }
+
+    // Filtre par plusieurs catégories (pour les sous-catégories)
+    if (filters.categoryIds && filters.categoryIds.length > 0) {
+      query.whereHas('categories', (categoryQuery) => {
+        categoryQuery.whereIn('categories.id', filters.categoryIds!)
+      })
     }
 
     if (filters.brandId) {
@@ -140,6 +176,33 @@ export default class ProductRepository extends BaseRepository<typeof Product> {
 
     if (filters.isFeatured !== undefined) {
       query.where('is_featured', filters.isFeatured)
+    }
+
+    if (filters.isActive !== undefined) {
+      query.where('is_active', filters.isActive)
+    }
+
+    // Filtres de prix
+    if (filters.minPrice !== undefined) {
+      query.where('price', '>=', filters.minPrice)
+    }
+
+    if (filters.maxPrice !== undefined) {
+      query.where('price', '<=', filters.maxPrice)
+    }
+
+    // Filtre de stock
+    if (filters.inStock !== undefined) {
+      if (filters.inStock) {
+        query.where('in_stock', true)
+      } else {
+        query.where('in_stock', false)
+      }
+    }
+
+    // Filtres de métadonnées
+    if (filters.metadata && Object.keys(filters.metadata).length > 0) {
+      MetadataService.buildMetadataFilter(query, filters.metadata)
     }
 
     // Application du tri
@@ -159,5 +222,39 @@ export default class ProductRepository extends BaseRepository<typeof Product> {
     }
 
     return query.paginate(page, perPage)
+  }
+
+  /**
+   * Récupère les valeurs uniques pour un filtre de métadonnées
+   */
+  async getMetadataFilterValues(key: string): Promise<any[]> {
+    return MetadataService.getUniqueValues(key)
+  }
+
+  /**
+   * Récupère toutes les clés de métadonnées disponibles
+   */
+  async getAvailableMetadataKeys(): Promise<string[]> {
+    return MetadataService.getAvailableKeys()
+  }
+
+  /**
+   * Récupère les filtres disponibles pour l'interface
+   */
+  async getAvailableFilters(): Promise<{
+    metadataKeys: string[]
+    metadataValues: Record<string, any[]>
+  }> {
+    const metadataKeys = await this.getAvailableMetadataKeys()
+    const metadataValues: Record<string, any[]> = {}
+
+    for (const key of metadataKeys) {
+      metadataValues[key] = await this.getMetadataFilterValues(key)
+    }
+
+    return {
+      metadataKeys,
+      metadataValues,
+    }
   }
 }

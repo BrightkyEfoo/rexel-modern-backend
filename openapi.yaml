@@ -128,6 +128,22 @@ components:
           type: string
           format: date-time
           description: Date de modification
+        breadcrumb_slugs:
+          type: array
+          items:
+            type: string
+          description: Arbre généalogique des slugs des catégories parentes
+        ancestors:
+          type: array
+          items:
+            $ref: '#/components/schemas/CategoryAncestor'
+          description: Liste des catégories parentes
+        is_leaf:
+          type: boolean
+          description: Indique si la catégorie est une feuille (sans enfants)
+        is_root:
+          type: boolean
+          description: Indique si la catégorie est une racine (sans parent)
         parent:
           $ref: '#/components/schemas/Category'
         children:
@@ -142,6 +158,22 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/File'
+
+    CategoryAncestor:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: ID de la catégorie ancêtre
+        name:
+          type: string
+          description: Nom de la catégorie ancêtre
+        slug:
+          type: string
+          description: Slug de la catégorie ancêtre
+        sortOrder:
+          type: integer
+          description: Ordre de tri de la catégorie ancêtre
 
     Brand:
       type: object
@@ -511,6 +543,128 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
         '401':
           description: Non authentifié
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /products/category/{slug}:
+    get:
+      tags:
+        - Products (Public)
+      summary: Produits d'une catégorie avec filtres
+      description: Récupère les produits d'une catégorie avec support des sous-catégories et filtres avancés
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Slug de la catégorie
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+          description: Numéro de page
+        - name: per_page
+          in: query
+          schema:
+            type: integer
+            default: 20
+          description: Nombre d'éléments par page
+        - name: sort_by
+          in: query
+          schema:
+            type: string
+            enum: [name, price, created_at, updated_at]
+            default: name
+          description: Champ de tri
+        - name: sort_order
+          in: query
+          schema:
+            type: string
+            enum: [asc, desc]
+            default: asc
+          description: Ordre de tri
+        - name: search
+          in: query
+          schema:
+            type: string
+          description: Terme de recherche
+        - name: brand_id
+          in: query
+          schema:
+            type: integer
+          description: ID de la marque
+        - name: is_featured
+          in: query
+          schema:
+            type: boolean
+          description: Produits mis en avant uniquement
+        - name: is_active
+          in: query
+          schema:
+            type: boolean
+          description: Produits actifs uniquement
+        - name: include_subcategories
+          in: query
+          schema:
+            type: boolean
+            default: false
+          description: Inclure les produits des sous-catégories
+        - name: min_price
+          in: query
+          schema:
+            type: number
+          description: Prix minimum
+        - name: max_price
+          in: query
+          schema:
+            type: number
+          description: Prix maximum
+        - name: in_stock
+          in: query
+          schema:
+            type: boolean
+          description: Produits en stock uniquement
+      responses:
+        '200':
+          description: Produits de la catégorie
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Product'
+                      category:
+                        type: object
+                        properties:
+                          id:
+                            type: integer
+                          name:
+                            type: string
+                          slug:
+                            type: string
+                          description:
+                            type: string
+                          breadcrumb_slugs:
+                            type: array
+                            items:
+                              type: string
+        '404':
+          description: Catégorie non trouvée
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Erreur serveur
           content:
             application/json:
               schema:

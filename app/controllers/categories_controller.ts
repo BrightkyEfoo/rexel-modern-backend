@@ -69,8 +69,24 @@ export default class CategoriesController {
         })
       }
 
+      // Récupérer l'arbre généalogique des slugs
+      const breadcrumbSlugs = await category.getBreadcrumbSlugs()
+      const ancestors = await category.getAncestors()
+      const isLeaf = await category.isLeaf()
+
       return response.ok({
-        data: category,
+        data: {
+          ...category.toJSON(),
+          breadcrumb_slugs: breadcrumbSlugs,
+          ancestors: ancestors.map((ancestor) => ({
+            id: ancestor.id,
+            name: ancestor.name,
+            slug: ancestor.slug,
+            sortOrder: ancestor.sortOrder,
+          })),
+          is_leaf: isLeaf,
+          is_root: category.isRoot(),
+        },
         message: 'Category retrieved successfully',
         status: 200,
         timestamp: new Date().toISOString(),

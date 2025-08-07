@@ -1,6 +1,6 @@
 import { DateTime } from 'luxon'
-import { BaseModel, column, hasMany, belongsTo } from '@adonisjs/lucid/orm'
-import type { HasMany, BelongsTo } from '@adonisjs/lucid/types/relations'
+import { BaseModel, column, hasMany, belongsTo, manyToMany } from '@adonisjs/lucid/orm'
+import type { HasMany, BelongsTo, ManyToMany } from '@adonisjs/lucid/types/relations'
 import Product from './product.js'
 import File from './file.js'
 
@@ -33,8 +33,13 @@ export default class Category extends BaseModel {
   declare updatedAt: DateTime
 
   // Relations
-  @hasMany(() => Product)
-  declare products: HasMany<typeof Product>
+  @manyToMany(() => Product, {
+    pivotTable: 'product_categories',
+    pivotForeignKey: 'category_id',
+    pivotRelatedForeignKey: 'product_id',
+    pivotColumns: ['sort_order'],
+  })
+  declare products: ManyToMany<typeof Product>
 
   @belongsTo(() => Category, {
     foreignKey: 'parentId',
@@ -51,4 +56,88 @@ export default class Category extends BaseModel {
     onQuery: (query) => query.where('fileable_type', 'Category'),
   })
   declare files: HasMany<typeof File>
+
+  /**
+   * Récupère l'arbre généalogique des slugs (breadcrumb)
+   * Retourne un tableau des slugs des catégories parentes
+   */
+  async getBreadcrumbSlugs(): Promise<string[]> {
+    const breadcrumb: string[] = []
+    let current: Category | null = this
+
+    // Ajouter le slug de la catégorie actuelle
+    breadcrumb.unshift(current.slug)
+
+    // Remonter l'arbre des parents avec une condition plus sûre
+    while (current && current.parentId) {
+      current = await Category.find(current.parentId)
+
+      if (current) {
+        breadcrumb.unshift(current.slug)
+      } else {
+        break
+      }
+    }
+
+    return breadcrumb
+  }
+
+  /**
+   * Récupère tous les ancêtres de la catégorie
+   */
+  async getAncestors(): Promise<Category[]> {
+    const ancestors: Category[] = []
+    let current: Category | null = this
+
+    while (current && current.parentId) {
+      current = await Category.find(current.parentId)
+
+      if (current) {
+        ancestors.unshift(current)
+      } else {
+        break
+      }
+    }
+
+    return ancestors
+  }
+
+  /**
+   * Récupère tous les descendants de la catégorie (récursif)
+   */
+  async getDescendants(): Promise<Category[]> {
+    const descendants: Category[] = []
+
+    const children = await Category.query()
+      .where('parentId', this.id)
+      .where('isActive', true)
+      .orderBy('sortOrder', 'asc')
+
+    for (const child of children) {
+      descendants.push(child)
+      const childDescendants = await child.getDescendants()
+      descendants.push(...childDescendants)
+    }
+
+    return descendants
+  }
+
+  /**
+   * Vérifie si la catégorie est une feuille (sans enfants)
+   */
+  async isLeaf(): Promise<boolean> {
+    const childrenCount = await Category.query()
+      .where('parentId', this.id)
+      .where('isActive', true)
+      .count('* as total')
+
+    return childrenCount[0].$extras.total === 0
+  }
+
+  /**
+   * Vérifie si la catégorie est une racine (sans parent)
+   */
+  isRoot(): boolean {
+    return this.parentId === null
+  }
 }

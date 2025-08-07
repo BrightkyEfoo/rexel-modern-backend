@@ -2,6 +2,7 @@ import type { HttpContext } from '@adonisjs/core/http'
 import ProductRepository from '../repositories/product_repository.js'
 import SlugService from '../services/slug_service.js'
 import { createProductValidator, updateProductValidator } from '../validators/create_product.js'
+import Category from '../models/category.js'
 
 export default class ProductsController {
   private productRepository = new ProductRepository()
@@ -20,11 +21,28 @@ export default class ProductsController {
       const brandId = request.input('brand_id')
       const isFeatured = request.input('is_featured')
 
+      // Récupérer les filtres de métadonnées
+      const metadataFilters: Record<string, any> = {}
+      const metadataKeys = await this.productRepository.getAvailableMetadataKeys()
+
+      for (const key of metadataKeys) {
+        const value = request.input(key)
+        if (value !== undefined && value !== null && value !== '') {
+          // Gérer les valeurs multiples (ex: couleur=rouge,bleu)
+          if (typeof value === 'string' && value.includes(',')) {
+            metadataFilters[key] = value.split(',').map((v) => v.trim())
+          } else {
+            metadataFilters[key] = value
+          }
+        }
+      }
+
       const filters = {
         search,
         categoryId,
         brandId,
         isFeatured: isFeatured === 'true' ? true : undefined,
+        metadata: Object.keys(metadataFilters).length > 0 ? metadataFilters : undefined,
       }
 
       const paginatedProducts = await this.productRepository.findWithPaginationAndFilters(
@@ -187,6 +205,7 @@ export default class ProductsController {
         timestamp: new Date().toISOString(),
       })
     } catch (error) {
+      console.error('Error fetching products by category:', error)
       return response.internalServerError({
         message: 'Error fetching products by category',
         status: 500,
@@ -267,6 +286,140 @@ export default class ProductsController {
     } catch (error) {
       return response.internalServerError({
         message: 'Error fetching featured products',
+        status: 500,
+        timestamp: new Date().toISOString(),
+      })
+    }
+  }
+
+  /**
+   * Récupère les filtres disponibles
+   */
+  async filters({ response }: HttpContext) {
+    try {
+      const availableFilters = await this.productRepository.getAvailableFilters()
+
+      return response.ok({
+        data: availableFilters,
+        message: 'Available filters retrieved successfully',
+        status: 200,
+        timestamp: new Date().toISOString(),
+      })
+    } catch (error) {
+      return response.internalServerError({
+        message: 'Error fetching available filters',
+        status: 500,
+        timestamp: new Date().toISOString(),
+      })
+    }
+  }
+
+  /**
+   * Récupère les valeurs uniques pour un filtre donné
+   */
+  async filterValues({ params, response }: HttpContext) {
+    try {
+      const { key } = params
+      const values = await this.productRepository.getMetadataFilterValues(key)
+
+      return response.ok({
+        data: values,
+        message: `Filter values for ${key} retrieved successfully`,
+        status: 200,
+        timestamp: new Date().toISOString(),
+      })
+    } catch (error) {
+      return response.internalServerError({
+        message: 'Error fetching filter values',
+        status: 500,
+        timestamp: new Date().toISOString(),
+      })
+    }
+  }
+
+  /**
+   * Récupère les produits d'une catégorie avec filtres avancés
+   * Inclut les produits des sous-catégories si include_subcategories=true
+   */
+  async getByCategory({ params, request, response }: HttpContext) {
+    try {
+      const page = request.input('page', 1)
+      const perPage = request.input('per_page', 20)
+      const sortBy = request.input('sort_by', 'name')
+      const sortOrder = request.input('sort_order', 'asc')
+      const search = request.input('search')
+      const brandId = request.input('brand_id')
+      const isFeatured = request.input('is_featured')
+      const isActive = request.input('is_active')
+      const includeSubcategories = request.input('include_subcategories', 'false') === 'true'
+      const minPrice = request.input('min_price')
+      const maxPrice = request.input('max_price')
+      const inStock = request.input('in_stock')
+
+      // Récupérer la catégorie
+      const category = await Category.query().where('slug', params.slug).first()
+      if (!category) {
+        return response.notFound({
+          message: 'Category not found',
+          status: 404,
+          timestamp: new Date().toISOString(),
+        })
+      }
+
+      // Construire les filtres
+      const filters: any = {
+        search,
+        brandId: brandId ? Number.parseInt(brandId) : undefined,
+        isFeatured: isFeatured === 'true' ? true : isFeatured === 'false' ? false : undefined,
+        isActive: isActive === 'true' ? true : isActive === 'false' ? false : undefined,
+        minPrice: minPrice ? Number.parseFloat(minPrice) : undefined,
+        maxPrice: maxPrice ? Number.parseFloat(maxPrice) : undefined,
+        inStock: inStock === 'true' ? true : inStock === 'false' ? false : undefined,
+      }
+
+      // Si on inclut les sous-catégories, récupérer tous les IDs des catégories
+      if (includeSubcategories) {
+        const descendants = await category.getDescendants()
+        const categoryIds = [category.id, ...descendants.map((desc) => desc.id)]
+        filters.categoryIds = categoryIds
+      } else {
+        filters.categoryId = category.id
+      }
+
+      const paginatedProducts = await this.productRepository.findWithPaginationAndFilters(
+        page,
+        perPage,
+        sortBy,
+        sortOrder,
+        filters
+      )
+
+      // Récupérer l'arbre généalogique de la catégorie
+      const breadcrumbSlugs = await category.getBreadcrumbSlugs()
+
+      return response.ok({
+        data: paginatedProducts.all(),
+        meta: {
+          total: paginatedProducts.total,
+          per_page: paginatedProducts.perPage,
+          current_page: paginatedProducts.currentPage,
+          last_page: paginatedProducts.lastPage,
+        },
+        category: {
+          id: category.id,
+          name: category.name,
+          slug: category.slug,
+          description: category.description,
+          breadcrumb_slugs: breadcrumbSlugs,
+        },
+        message: 'Products retrieved successfully',
+        status: 200,
+        timestamp: new Date().toISOString(),
+      })
+    } catch (error) {
+      console.log('Error fetching products by category2', error)
+      return response.internalServerError({
+        message: 'Error fetching products by category',
         status: 500,
         timestamp: new Date().toISOString(),
       })
