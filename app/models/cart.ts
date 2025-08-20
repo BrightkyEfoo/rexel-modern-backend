@@ -35,9 +35,11 @@ export default class Cart extends BaseModel {
 
   @computed()
   public get totalPrice() {
-    return this.items?.reduce((total, item) => {
-      const price = parseFloat(item.product.salePrice || item.product.price)
-      return total + (price * item.quantity)
-    }, 0) || 0
+    return (
+      this.items?.reduce((total, item) => {
+        const price = Number.parseFloat(String(item.product.salePrice || item.product.price))
+        return total + price * item.quantity
+      }, 0) || 0
+    )
   }
 }

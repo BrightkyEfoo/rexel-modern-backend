@@ -43,8 +43,8 @@ export default class CartsController {
           id: null,
           items: [],
           totalItems: 0,
-          totalPrice: 0
-        }
+          totalPrice: 0,
+        },
       })
     }
 
@@ -53,8 +53,8 @@ export default class CartsController {
         id: cart.id,
         items: cart.items,
         totalItems: cart.totalItems,
-        totalPrice: cart.totalPrice
-      }
+        totalPrice: cart.totalPrice,
+      },
     })
   }
 
@@ -70,14 +70,14 @@ export default class CartsController {
     const product = await Product.find(payload.productId)
     if (!product) {
       return response.notFound({
-        message: 'Produit non trouvé'
+        message: 'Produit non trouvé',
       })
     }
 
     // Vérifier le stock
     if (!product.inStock || product.stockQuantity < payload.quantity) {
       return response.badRequest({
-        message: 'Stock insuffisant'
+        message: 'Stock insuffisant',
       })
     }
 
@@ -85,18 +85,15 @@ export default class CartsController {
 
     // Récupérer ou créer le panier
     if (user) {
-      cart = await Cart.firstOrCreate(
-        { userId: user.id },
-        { userId: user.id }
-      )
+      cart = await Cart.firstOrCreate({ userId: user.id }, { userId: user.id })
     } else if (sessionId) {
       cart = await Cart.firstOrCreate(
-        { sessionId, userId: null },
-        { sessionId, userId: null }
+        { sessionId, userId: undefined },
+        { sessionId, userId: undefined }
       )
     } else {
       return response.badRequest({
-        message: 'Session ID requis pour les utilisateurs non connectés'
+        message: 'Session ID requis pour les utilisateurs non connectés',
       })
     }
 
@@ -110,7 +107,7 @@ export default class CartsController {
       const newQuantity = existingItem.quantity + payload.quantity
       if (newQuantity > product.stockQuantity) {
         return response.badRequest({
-          message: 'Quantité demandée supérieure au stock disponible'
+          message: 'Quantité demandée supérieure au stock disponible',
         })
       }
       existingItem.quantity = newQuantity
@@ -119,7 +116,7 @@ export default class CartsController {
       await CartItem.create({
         cartId: cart.id,
         productId: payload.productId,
-        quantity: payload.quantity
+        quantity: payload.quantity,
       })
     }
 
@@ -135,8 +132,8 @@ export default class CartsController {
         id: cart.id,
         items: cart.items,
         totalItems: cart.totalItems,
-        totalPrice: cart.totalPrice
-      }
+        totalPrice: cart.totalPrice,
+      },
     })
   }
 
@@ -158,7 +155,7 @@ export default class CartsController {
 
     if (!item) {
       return response.notFound({
-        message: 'Item non trouvé'
+        message: 'Item non trouvé',
       })
     }
 
@@ -166,19 +163,19 @@ export default class CartsController {
     const cart = item.cart
     if (user && cart.userId !== user.id) {
       return response.forbidden({
-        message: 'Accès non autorisé'
+        message: 'Accès non autorisé',
       })
     }
     if (!user && cart.sessionId !== sessionId) {
       return response.forbidden({
-        message: 'Accès non autorisé'
+        message: 'Accès non autorisé',
       })
     }
 
     // Vérifier le stock
     if (payload.quantity > item.product.stockQuantity) {
       return response.badRequest({
-        message: 'Quantité demandée supérieure au stock disponible'
+        message: 'Quantité demandée supérieure au stock disponible',
       })
     }
 
@@ -198,8 +195,8 @@ export default class CartsController {
         id: cart.id,
         items: cart.items,
         totalItems: cart.totalItems,
-        totalPrice: cart.totalPrice
-      }
+        totalPrice: cart.totalPrice,
+      },
     })
   }
 
@@ -212,14 +209,11 @@ export default class CartsController {
     const itemId = params.itemId
 
     // Récupérer l'item avec son panier
-    const item = await CartItem.query()
-      .where('id', itemId)
-      .preload('cart')
-      .first()
+    const item = await CartItem.query().where('id', itemId).preload('cart').first()
 
     if (!item) {
       return response.notFound({
-        message: 'Item non trouvé'
+        message: 'Item non trouvé',
       })
     }
 
@@ -227,12 +221,12 @@ export default class CartsController {
     const cart = item.cart
     if (user && cart.userId !== user.id) {
       return response.forbidden({
-        message: 'Accès non autorisé'
+        message: 'Accès non autorisé',
       })
     }
     if (!user && cart.sessionId !== sessionId) {
       return response.forbidden({
-        message: 'Accès non autorisé'
+        message: 'Accès non autorisé',
       })
     }
 
@@ -251,8 +245,8 @@ export default class CartsController {
         id: cart.id,
         items: cart.items,
         totalItems: cart.totalItems,
-        totalPrice: cart.totalPrice
-      }
+        totalPrice: cart.totalPrice,
+      },
     })
   }
 
@@ -268,10 +262,7 @@ export default class CartsController {
     if (user) {
       cart = await Cart.query().where('userId', user.id).first()
     } else if (sessionId) {
-      cart = await Cart.query()
-        .where('sessionId', sessionId)
-        .whereNull('userId')
-        .first()
+      cart = await Cart.query().where('sessionId', sessionId).whereNull('userId').first()
     }
 
     if (cart) {
@@ -283,8 +274,8 @@ export default class CartsController {
         id: cart?.id || null,
         items: [],
         totalItems: 0,
-        totalPrice: 0
-      }
+        totalPrice: 0,
+      },
     })
   }
 
@@ -297,7 +288,7 @@ export default class CartsController {
 
     if (!user || !sessionId) {
       return response.badRequest({
-        message: 'Utilisateur connecté et session ID requis'
+        message: 'Utilisateur connecté et session ID requis',
       })
     }
 
@@ -310,15 +301,12 @@ export default class CartsController {
 
     if (!sessionCart || sessionCart.items.length === 0) {
       return response.ok({
-        message: 'Aucun panier de session à fusionner'
+        message: 'Aucun panier de session à fusionner',
       })
     }
 
     // Récupérer ou créer le panier utilisateur
-    const userCart = await Cart.firstOrCreate(
-      { userId: user.id },
-      { userId: user.id }
-    )
+    const userCart = await Cart.firstOrCreate({ userId: user.id }, { userId: user.id })
 
     // Fusionner les items
     for (const sessionItem of sessionCart.items) {
@@ -336,7 +324,7 @@ export default class CartsController {
         await CartItem.create({
           cartId: userCart.id,
           productId: sessionItem.productId,
-          quantity: sessionItem.quantity
+          quantity: sessionItem.quantity,
         })
       }
     }
@@ -356,8 +344,8 @@ export default class CartsController {
         id: userCart.id,
         items: userCart.items,
         totalItems: userCart.totalItems,
-        totalPrice: userCart.totalPrice
-      }
+        totalPrice: userCart.totalPrice,
+      },
     })
   }
 }
