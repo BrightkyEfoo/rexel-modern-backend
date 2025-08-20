@@ -168,6 +168,7 @@ export default class BrandsController {
         timestamp: new Date().toISOString(),
       })
     } catch (error) {
+      console.log('error', error)
       return response.internalServerError({
         message: 'Error fetching featured brands',
         status: 500,

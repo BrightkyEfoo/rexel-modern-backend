@@ -5,7 +5,7 @@ import { middleware } from '#start/kernel'
 export function registerPublicFileRoutes() {
   router.group(() => {
     router.get('/files/:fileableType/:fileableId', '#controllers/files_controller.getEntityFiles')
-  })
+  }).prefix('/api/v1/opened')
 }
 
 // Routes sécurisées pour les fichiers (admin)
@@ -16,5 +16,6 @@ export function registerSecuredFileRoutes() {
       router.post('/files/attach', '#controllers/files_controller.attachToEntity')
       router.delete('/files/:id', '#controllers/files_controller.destroy')
     })
+    .prefix('/api/v1/secured')
     .middleware([middleware.auth()])
 }

@@ -36,4 +36,18 @@ export default await Env.create(new URL('../', import.meta.url), {
   MINIO_SECRET_KEY: Env.schema.string(),
   MINIO_USE_SSL: Env.schema.boolean.optional(),
   MINIO_REGION: Env.schema.string.optional(),
+
+  /*
+  |----------------------------------------------------------
+  | Variables for configuring the mail package
+  |----------------------------------------------------------
+  */
+  SMTP_HOST: Env.schema.string.optional(),
+  SMTP_PORT: Env.schema.number.optional(),
+  SMTP_USERNAME: Env.schema.string.optional(),
+  SMTP_PASSWORD: Env.schema.string.optional(),
+  MAIL_FROM_ADDRESS: Env.schema.string.optional(),
+  MAIL_FROM_NAME: Env.schema.string.optional(),
+  MAIL_USERNAME: Env.schema.string.optional(),
+  GOOGLE_APP_SECRET: Env.schema.string.optional(),
 })

@@ -11,7 +11,7 @@ export function registerPublicProductRoutes() {
     router.get('/products/category/:slug', '#controllers/products_controller.getByCategory')
     router.get('/products/brand/:id', '#controllers/products_controller.getByBrand')
     router.get('/products/:slug', '#controllers/products_controller.show')
-  })
+  }).prefix('/api/v1/opened')
 }
 
 // Routes sécurisées pour les produits (admin)
@@ -22,5 +22,6 @@ export function registerSecuredProductRoutes() {
       router.put('/products/:id', '#controllers/products_controller.update')
       router.delete('/products/:id', '#controllers/products_controller.destroy')
     })
+    .prefix('/api/v1/secured')
     .middleware([middleware.auth()])
 }
