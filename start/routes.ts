@@ -19,6 +19,7 @@ import { registerPublicCartRoutes, registerSecuredCartRoutes } from '../routes/c
 import { registerPublicAuthRoutes, registerSecuredAuthRoutes } from '../routes/auth.js'
 import { registerSecuredAddressRoutes } from '../routes/addresses.js'
 import { registerUtilRoutes } from '../routes/utils.js'
+import '../routes/favorites.js'
 import router from '@adonisjs/core/services/router'
 
 // Enregistrement des routes publiques

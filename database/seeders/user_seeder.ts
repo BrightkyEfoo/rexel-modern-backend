@@ -10,31 +10,43 @@ export default class UserSeeder extends BaseSeeder {
     // Données des utilisateurs
     const usersData = [
       {
-        fullName: 'Administrateur KesiMarket',
+        firstName: 'Admin',
+        lastName: 'KesiMarket',
         email: 'admin@kesimarket.com',
         password: 'admin123',
         type: UserType.ADMIN,
       },
       {
-        fullName: 'Jean Dupont',
+        firstName: 'Admin',
+        lastName: 'Rexel',
+        email: 'admin@rexel.com',
+        password: 'admin123',
+        type: UserType.ADMIN,
+      },
+      {
+        firstName: 'Jean',
+        lastName: 'Dupont',
         email: 'jean.dupont@example.com',
         password: 'customer123',
         type: UserType.CUSTOMER,
       },
       {
-        fullName: 'Marie Martin',
+        firstName: 'Marie',
+        lastName: 'Martin',
         email: 'marie.martin@example.com',
         password: 'customer123',
         type: UserType.CUSTOMER,
       },
       {
-        fullName: 'Pierre Durand',
+        firstName: 'Pierre',
+        lastName: 'Durand',
         email: 'pierre.durand@example.com',
         password: 'customer123',
         type: UserType.CUSTOMER,
       },
       {
-        fullName: 'Sophie Bernard',
+        firstName: 'Sophie',
+        lastName: 'Bernard',
         email: 'sophie.bernard@example.com',
         password: 'customer123',
         type: UserType.CUSTOMER,
@@ -55,7 +67,8 @@ export default class UserSeeder extends BaseSeeder {
 
       // Créer l'utilisateur
       const user = await User.create({
-        fullName: userData.fullName,
+        firstName: userData.firstName,
+        lastName: userData.lastName,
         email: userData.email,
         password: hashedPassword,
         type: userData.type,

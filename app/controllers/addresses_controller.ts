@@ -1,6 +1,10 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import Address from '#models/address'
-import { createAddressValidator, updateAddressValidator, setDefaultAddressValidator } from '#validators/address'
+import {
+  createAddressValidator,
+  updateAddressValidator,
+  setDefaultAddressValidator,
+} from '#validators/address'
 
 export default class AddressesController {
   /**
@@ -12,7 +16,7 @@ export default class AddressesController {
       const type = request.qs().type as 'shipping' | 'billing' | undefined
 
       const addresses = await Address.findUserAddresses(user.id, type)
-      
+
       return response.ok({
         data: addresses,
       })
@@ -54,7 +58,7 @@ export default class AddressesController {
           details: error.messages,
         })
       }
-      
+
       return response.unauthorized({
         error: 'Non autorisé',
       })
@@ -69,10 +73,7 @@ export default class AddressesController {
       const user = await auth.authenticate()
       const addressId = params.id
 
-      const address = await Address.query()
-        .where('id', addressId)
-        .where('userId', user.id)
-        .first()
+      const address = await Address.query().where('id', addressId).where('userId', user.id).first()
 
       if (!address) {
         return response.notFound({
@@ -99,10 +100,7 @@ export default class AddressesController {
       const addressId = params.id
       const payload = await request.validateUsing(updateAddressValidator)
 
-      const address = await Address.query()
-        .where('id', addressId)
-        .where('userId', user.id)
-        .first()
+      const address = await Address.query().where('id', addressId).where('userId', user.id).first()
 
       if (!address) {
         return response.notFound({
@@ -133,7 +131,7 @@ export default class AddressesController {
           details: error.messages,
         })
       }
-      
+
       return response.unauthorized({
         error: 'Non autorisé',
       })
@@ -148,10 +146,7 @@ export default class AddressesController {
       const user = await auth.authenticate()
       const addressId = params.id
 
-      const address = await Address.query()
-        .where('id', addressId)
-        .where('userId', user.id)
-        .first()
+      const address = await Address.query().where('id', addressId).where('userId', user.id).first()
 
       if (!address) {
         return response.notFound({
@@ -206,7 +201,7 @@ export default class AddressesController {
           details: error.messages,
         })
       }
-      
+
       return response.unauthorized({
         error: 'Non autorisé',
       })

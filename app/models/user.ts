@@ -7,6 +7,7 @@ import { withAuthFinder } from '@adonisjs/auth/mixins/lucid'
 import { DbAccessTokensProvider } from '@adonisjs/auth/access_tokens'
 import { UserType } from '../types/user.js'
 import Address from './address.js'
+import Favorite from './favorite.js'
 
 const AuthFinder = withAuthFinder(() => hash.use('scrypt'), {
   uids: ['email'],
@@ -64,6 +65,9 @@ export default class User extends compose(BaseModel, AuthFinder) {
   // Relations
   @hasMany(() => Address)
   declare addresses: HasMany<typeof Address>
+
+  @hasMany(() => Favorite)
+  declare favorites: HasMany<typeof Favorite>
 
   // Computed property for full name
   get fullName(): string {
