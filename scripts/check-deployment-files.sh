@@ -15,7 +15,7 @@ errors=0
 
 # Vérifier fichiers requis
 echo "📋 Fichiers de configuration:"
-for file in "docker-compose.prod.yml" "Caddyfile" ".env"; do
+for file in "docker-compose.prod.yml" ".env"; do
     if [ -f "$DEPLOY_PATH/$file" ]; then
         echo "✅ $file"
     else

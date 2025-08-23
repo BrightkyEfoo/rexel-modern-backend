@@ -145,12 +145,11 @@ jobs:
             echo "📋 Container Status:"
             ${USE_SUDO}docker ps -f name=kesimarket- --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
             
-            # Check Caddy proxy status
-            if [ $(${USE_SUDO}docker ps -q -f name=kesimarket-caddy-prod) ]; then
-              echo "✅ Caddy reverse proxy is running"
-            else
-              echo "⚠️  Caddy reverse proxy is not running (may impact external access)"
-            fi
+            # Check if infrastructure services are running
+            echo "🔍 Infrastructure services status:"
+            ${USE_SUDO}docker ps -f name=kesimarket-postgres-prod --format "table {{.Names}}\t{{.Status}}"
+            ${USE_SUDO}docker ps -f name=kesimarket-minio-prod --format "table {{.Names}}\t{{.Status}}"
+            ${USE_SUDO}docker ps -f name=kesimarket-redis-prod --format "table {{.Names}}\t{{.Status}}"
             
             # Check if application container is running
             if [ $(${USE_SUDO}docker ps -q -f name=${{ env.CONTAINER_NAME }}) ]; then

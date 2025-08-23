@@ -58,8 +58,7 @@ jobs:
             mkdir -p ${{ env.VPS_DEPLOY_PATH }}/images
             mkdir -p ${{ env.VPS_DEPLOY_PATH }}/uploads
             mkdir -p ${{ env.VPS_DEPLOY_PATH }}/minio-data
-            mkdir -p ${{ env.VPS_DEPLOY_PATH }}/logs
-            chmod 755 ${{ env.VPS_DEPLOY_PATH }}/logs
+
 
   docker-setup:
     name: Verify Docker Setup
@@ -294,7 +293,6 @@ jobs:
           path: |
             kesimarket-backend-prod.tar
             docker-compose.prod.yml
-            Caddyfile
           retention-days: 7
 
   transfer-image:
@@ -315,7 +313,7 @@ jobs:
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_PRIVATE_KEY }}
           port: 22
-          source: "kesimarket-backend-prod.tar,docker-compose.prod.yml,Caddyfile"
+          source: "kesimarket-backend-prod.tar,docker-compose.prod.yml"
           target: ${{ env.VPS_DEPLOY_PATH }}/
       
       - name: Create backup and organize files
@@ -337,14 +335,7 @@ jobs:
             # Move new image to images directory
             mv ${{ env.VPS_DEPLOY_PATH }}/kesimarket-backend-prod.tar ${{ env.VPS_DEPLOY_PATH }}/images/kesimarket-backend-prod-current.tar
             
-            # Verify Caddyfile exists
-            if [ ! -f ${{ env.VPS_DEPLOY_PATH }}/Caddyfile ]; then
-              echo "❌ Caddyfile not found in deployment directory!"
-              ls -la ${{ env.VPS_DEPLOY_PATH }}/
-              exit 1
-            else
-              echo "✅ Caddyfile found and ready"
-            fi
+            echo "✅ Docker image organized successfully"
 
   load-and-run:
     name: Load and Run Services with Docker Compose
@@ -576,18 +567,9 @@ jobs:
             echo "Waiting 10 seconds before starting application..."
             sleep 10
             
-            # Start application and Caddy services
-            echo 'Starting application and Caddy services...'
-            
-            # Verify Caddyfile before starting
-            if [ ! -f Caddyfile ]; then
-              echo "❌ Caddyfile not found! Cannot start Caddy."
-              ls -la .
-              exit 1
-            fi
-            
-            # Start both services
-            ${USE_SUDO}docker compose -f docker-compose.prod.yml up -d app caddy
+            # Start application service
+            echo 'Starting application service...'
+            ${USE_SUDO}docker compose -f docker-compose.prod.yml up -d app
             
             # Wait for services to start
             echo 'Waiting for services to start...'
@@ -598,9 +580,8 @@ jobs:
             echo '📋 Container Status:'
             ${USE_SUDO}docker ps -f name=kesimarket- --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
             
-            # Check main containers
+            # Check application container
             app_running=$(${USE_SUDO}docker ps -q -f name=${{ env.CONTAINER_NAME }})
-            caddy_running=$(${USE_SUDO}docker ps -q -f name=kesimarket-caddy-prod)
             
             if [ ! -z "$app_running" ]; then
               echo '✅ Application container is running!'
@@ -608,12 +589,6 @@ jobs:
               echo '❌ Application container failed to start!'
               ${USE_SUDO}docker compose -f docker-compose.prod.yml logs app
               exit 1
-            fi
-            
-            if [ ! -z "$caddy_running" ]; then
-              echo '✅ Caddy reverse proxy is running!'
-            else
-              echo '⚠️  Caddy container not running'
             fi
             
             echo 'Deployment completed - services are starting up...'
@@ -741,16 +716,14 @@ jobs:
             echo "📋 Container Status:"
             ${USE_SUDO}docker ps -f name=kesimarket- --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
             
-            # Check Caddy specifically
-            echo -e "\n🌐 Caddy Reverse Proxy Status:"
-            if [ $(${USE_SUDO}docker ps -q -f name=kesimarket-caddy-prod) ]; then
-              echo "✅ Caddy container is running"
-              ${USE_SUDO}docker logs --tail=5 kesimarket-caddy-prod
-            else
-              echo "❌ Caddy container not running"
-              echo "Available containers:"
-              ${USE_SUDO}docker ps -a -f name=kesimarket-caddy-prod
-            fi
+            # Check infrastructure services
+            echo -e "\n🔍 Infrastructure Services Status:"
+            echo "Database:"
+            ${USE_SUDO}docker ps -f name=kesimarket-postgres-prod --format "  {{.Names}}: {{.Status}}" || echo "  Not running"
+            echo "MinIO:"
+            ${USE_SUDO}docker ps -f name=kesimarket-minio-prod --format "  {{.Names}}: {{.Status}}" || echo "  Not running"
+            echo "Redis:"
+            ${USE_SUDO}docker ps -f name=kesimarket-redis-prod --format "  {{.Names}}: {{.Status}}" || echo "  Not running"
             
             # Check application logs (last 10 lines)
             echo -e "\n📝 Application Logs (last 10 lines):"
@@ -773,20 +746,13 @@ jobs:
             fi
             
             # Simple container check instead of API test
-            echo -e "\n🌐 Services Status:"
+            echo -e "\n🌐 Application Status:"
             app_running=$(${USE_SUDO}docker ps -q -f name=kesimarket-backend-prod)
-            caddy_running=$(${USE_SUDO}docker ps -q -f name=kesimarket-caddy-prod)
             
             if [ ! -z "$app_running" ]; then
               echo "✅ Application container is running"
             else
               echo "❌ Application container not running"
-            fi
-            
-            if [ ! -z "$caddy_running" ]; then
-              echo "✅ Caddy container is running"
-            else
-              echo "❌ Caddy container not running"
             fi
             
             # Check disk space
@@ -852,7 +818,6 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### 📋 Services Deployed" >> $GITHUB_STEP_SUMMARY
           echo "- 🚀 **KesiMarket Backend** (AdonisJS 6)" >> $GITHUB_STEP_SUMMARY
-          echo "- 🌐 **Caddy Reverse Proxy** (Load Balancer & SSL)" >> $GITHUB_STEP_SUMMARY
           echo "- 🗄️ **PostgreSQL Database**" >> $GITHUB_STEP_SUMMARY
           echo "- 📦 **MinIO Object Storage**" >> $GITHUB_STEP_SUMMARY
           echo "- 🗃️  **Redis Cache** (optional)" >> $GITHUB_STEP_SUMMARY

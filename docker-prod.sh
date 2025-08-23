@@ -59,13 +59,13 @@ setup_directories() {
     # Create data directories
     mkdir -p "$DATA_PATH"/{postgres,minio,redis}
     mkdir -p "$BACKUP_DIR"
-    mkdir -p "./nginx/ssl"
+
     
     # Set proper permissions
     chmod 755 "$DATA_PATH"
     chmod 700 "$DATA_PATH"/postgres
     chmod 755 "$DATA_PATH"/{minio,redis}
-    chmod 700 "./nginx/ssl"
+
     
     log_success "Directories created and permissions set"
 }
@@ -261,22 +261,15 @@ monitor() {
 
 # SSL certificate management
 setup_ssl() {
-    log_info "SSL certificate setup with Caddy:"
+    log_info "SSL certificate setup:"
     echo ""
-    echo "Caddy handles SSL automatically! Just:"
-    echo "1. Update your domain in Caddyfile"
-    echo "2. Uncomment the HTTPS server block"
-    echo "3. Restart Caddy: $0 restart caddy"
+    echo "For SSL certificates, you can use:"
+    echo "1. Nginx with Let's Encrypt (manual setup)"
+    echo "2. Cloudflare for SSL termination"
+    echo "3. Load balancer SSL termination"
     echo ""
-    echo "Caddy will automatically:"
-    echo "  - Obtain Let's Encrypt certificates"
-    echo "  - Renew certificates automatically"
-    echo "  - Handle HTTP -> HTTPS redirects"
-    echo ""
-    echo "Example Caddyfile for production:"
-    echo "  staging-api.kesimarket.com {"
-    echo "    reverse_proxy app:3333"
-    echo "  }"
+    echo "The application runs on port 3333 and can be proxied"
+    echo "through any reverse proxy solution."
 }
 
 # Main command handling

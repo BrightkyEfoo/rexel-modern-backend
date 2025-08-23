@@ -12,8 +12,7 @@
 ```
 
 ### 2. Architecture de Déploiement
-- **Caddy** : Reverse proxy avec SSL automatique
-- **AdonisJS** : Backend API 
+- **AdonisJS** : Backend API (port 3333)
 - **PostgreSQL** : Base de données
 - **MinIO** : Stockage d'objets
 - **Redis** : Cache
@@ -23,11 +22,7 @@
 # Vérifier les services
 docker ps -f name=kesimarket-
 
-# Logs Caddy (reverse proxy)
-docker logs -f kesimarket-caddy-prod
-tail -f ~/kesimarket-modern/backend/logs/access.log
-
-# Logs application
+# Logs Application
 docker logs -f kesimarket-backend-prod
 ```
 
@@ -204,7 +199,7 @@ docker-compose restart
 ### Guides de Déploiement
 - **[DEPLOYMENT.md](./DEPLOYMENT.md)** - Guide complet de déploiement production
 - **[GITHUB-SECRETS.md](./GITHUB-SECRETS.md)** - Configuration des secrets GitHub Actions
-- **[CADDY.md](./CADDY.md)** - Configuration du reverse proxy Caddy
+
 
 ### Scripts Utiles
 - **[scripts/validate-environment.sh](./scripts/validate-environment.sh)** - Validation de l'environnement
@@ -212,7 +207,7 @@ docker-compose restart
 - **[scripts/setup-directories.sh](./scripts/setup-directories.sh)** - Préparation des dossiers VPS
 
 ### Architecture Partagée
-- **[../kesimarket-modern/DEPLOYMENT-SHARED.md](../kesimarket-modern/DEPLOYMENT-SHARED.md)** - Architecture Caddy partagée Frontend/Backend
+- **[../kesimarket-modern/DEPLOYMENT-SHARED.md](../kesimarket-modern/DEPLOYMENT-SHARED.md)** - Architecture partagée Frontend/Backend
 
 # Arrêter les services
 docker-compose down

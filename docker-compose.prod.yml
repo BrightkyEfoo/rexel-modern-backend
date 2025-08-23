@@ -11,10 +11,7 @@ volumes:
     driver: local
   app_uploads:
     driver: local
-  caddy_data:
-    driver: local
-  caddy_config:
-    driver: local
+
 
 services:
   # PostgreSQL Database
@@ -148,30 +145,4 @@ services:
     networks:
       - kesimarket-net
 
-  # Caddy Reverse Proxy
-  caddy:
-    image: caddy:2-alpine
-    container_name: kesimarket-caddy-prod
-    restart: unless-stopped
-    depends_on:
-      - app
-    ports:
-      - '80:80'
-      - '443:443'
-      - '2019:2019' # Admin API (optional)
-    volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
-      - caddy_data:/data
-      - caddy_config:/config
-      - ./logs:/var/log/caddy
-    networks:
-      - kesimarket-net
-    environment:
-      # Enable admin API (optional)
-      CADDY_ADMIN: '0.0.0.0:2019'
-    healthcheck:
-      test: ['CMD', 'wget', '--no-verbose', '--tries=1', '--spider', 'http://localhost/health']
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 30s
+

@@ -2,44 +2,21 @@
 
 ## 🚨 Problèmes Courants de Déploiement
 
-### 1. Erreur Mount Caddyfile
-
-**Erreur :**
-```
-error mounting "/home/user/kesimarket-modern/backend/Caddyfile" to rootfs at "/etc/caddy/Caddyfile": 
-cannot create subdirectories: not a directory
-```
-
-**Cause :** Le fichier `Caddyfile` n'existe pas sur le serveur.
-
-**Solution :**
-```bash
-# Vérifier la présence du fichier
-ls -la ~/kesimarket-modern/backend/Caddyfile
-
-# Si manquant, le copier depuis le repository
-cp /path/to/repo/Caddyfile ~/kesimarket-modern/backend/
-
-# Relancer le déploiement
-docker compose -f docker-compose.prod.yml up -d caddy
-```
-
-### 2. Caddy Container ne démarre pas
+### 1. Application Backend ne démarre pas
 
 **Diagnostic :**
 ```bash
-# Vérifier les logs Caddy
-docker logs kesimarket-caddy-prod
+# Vérifier les logs de l'application
+docker logs kesimarket-backend-prod
 
-# Vérifier la syntaxe Caddyfile
-docker run --rm -v $(pwd)/Caddyfile:/etc/caddy/Caddyfile:ro \
-  caddy:2-alpine caddy validate --config /etc/caddy/Caddyfile
+# Vérifier l'état des services
+docker compose -f docker-compose.prod.yml ps
 ```
 
 **Solutions courantes :**
-- Vérifier que le `Caddyfile` existe
-- Valider la syntaxe du `Caddyfile`
-- S'assurer que l'app backend tourne
+- Vérifier les variables d'environnement
+- S'assurer que la base de données est prête
+- Vérifier les migrations
 
 ### 3. Application ne démarre pas
 
@@ -94,11 +71,8 @@ docker compose -f docker-compose.prod.yml logs --tail=20
 
 ### Tests de Connectivité
 ```bash
-# Test direct application (sans Caddy)
+# Test application backend
 curl http://localhost:3333/health
-
-# Test via Caddy
-curl http://localhost/health
 
 # Test base de données
 docker exec kesimarket-backend-prod node ace migration:status
@@ -118,9 +92,9 @@ docker image prune -f
 # Redémarrer les services infrastructure d'abord
 docker compose -f docker-compose.prod.yml up -d db minio redis
 
-# Attendre puis démarrer app et caddy
+# Attendre puis démarrer l'application
 sleep 30
-docker compose -f docker-compose.prod.yml up -d app caddy
+docker compose -f docker-compose.prod.yml up -d app
 ```
 
 ## 📊 Scripts de Vérification
@@ -186,4 +160,4 @@ Si les problèmes persistent :
 1. Vérifier les logs détaillés
 2. Tester les composants individuellement
 3. Comparer avec une installation propre
-4. Consulter la documentation Caddy/AdonisJS/PostgreSQL 
+4. Consulter la documentation AdonisJS/PostgreSQL 
