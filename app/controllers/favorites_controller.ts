@@ -1,7 +1,6 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import Favorite from '#models/favorite'
 import Product from '#models/product'
-import User from '#models/user'
 import { createFavoriteValidator, getFavoritesValidator } from '#validators/favorite'
 
 export default class FavoritesController {
