@@ -10,7 +10,14 @@ const corsConfig = defineConfig({
   enabled: true,
   origin: true,
   methods: ['GET', 'HEAD', 'POST', 'PUT', 'DELETE'],
-  headers: true, // Autoriser toutes les en-têtes
+  headers: [
+    'Content-Type',
+    'Authorization', 
+    'X-Requested-With',
+    'Accept',
+    'Origin',
+    'x-session-id' // En-tête requis pour la gestion des sessions de panier
+  ],
   exposeHeaders: [],
   credentials: true,
   maxAge: 90,

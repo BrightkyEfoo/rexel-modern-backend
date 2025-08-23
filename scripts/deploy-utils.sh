@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# 🛠️ Rexel Modern Backend - Deployment Utilities
+# 🛠️ KesiMarket Modern Backend - Deployment Utilities
 # Script d'aide pour la gestion du déploiement sur VPS
 
 set -e
@@ -13,9 +13,9 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 # Configuration
-DEPLOY_PATH="$HOME/rexel-modern/backend"
+DEPLOY_PATH="$HOME/kesimarket-modern/backend"
 COMPOSE_FILE="docker-compose.prod.yml"
-APP_NAME="rexel-backend-prod"
+APP_NAME="kesimarket-backend-prod"
 
 # Fonctions utilitaires
 log_info() {
@@ -46,7 +46,7 @@ check_deployment_directory() {
 
 # Afficher le statut des services
 show_status() {
-    log_info "État des services Rexel Modern"
+    log_info "État des services KesiMarket Modern"
     echo "----------------------------------------"
     docker compose -f $COMPOSE_FILE ps --format "table {{.Name}}\t{{.Status}}\t{{.Ports}}"
     echo ""
@@ -62,7 +62,7 @@ show_status() {
     fi
     
     # Base de données
-    if docker compose -f $COMPOSE_FILE exec -T db pg_isready -U ${DB_USER:-rexel_user} > /dev/null 2>&1; then
+    if docker compose -f $COMPOSE_FILE exec -T db pg_isready -U ${DB_USER:-kesimarket_user} > /dev/null 2>&1; then
         log_success "PostgreSQL - Connexion OK"
     else
         log_warning "PostgreSQL - Connexion échouée"
@@ -105,7 +105,7 @@ follow_logs() {
 
 # Redémarrer les services
 restart_services() {
-    log_info "Redémarrage des services Rexel Modern"
+    log_info "Redémarrage des services KesiMarket Modern"
     
     log_info "Arrêt des services..."
     docker compose -f $COMPOSE_FILE down
@@ -128,7 +128,7 @@ backup_database() {
     log_info "Création d'une sauvegarde de la base de données"
     
     mkdir -p backups
-    docker compose -f $COMPOSE_FILE exec -T db pg_dump -U ${DB_USER:-rexel_user} ${DB_DATABASE:-rexel_prod} > $backup_path
+    docker compose -f $COMPOSE_FILE exec -T db pg_dump -U ${DB_USER:-kesimarket_user} ${DB_DATABASE:-kesimarket_prod} > $backup_path
     
     if [ -f $backup_path ]; then
         log_success "Sauvegarde créée: $backup_path"
@@ -141,7 +141,7 @@ backup_database() {
 
 # Afficher l'aide
 show_help() {
-    echo "🛠️  Rexel Modern Backend - Deployment Utilities"
+    echo "🛠️  KesiMarket Modern Backend - Deployment Utilities"
     echo ""
     echo "Usage: $0 [COMMAND] [OPTIONS]"
     echo ""

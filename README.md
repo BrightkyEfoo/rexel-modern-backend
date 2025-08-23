@@ -1,4 +1,4 @@
-# Rexel Modern Backend
+# KesiMarket Modern Backend
 
 ## 🚀 Déploiement Rapide
 
@@ -21,14 +21,14 @@
 ### 3. Services Actifs
 ```bash
 # Vérifier les services
-docker ps -f name=rexel-
+docker ps -f name=kesimarket-
 
 # Logs Caddy (reverse proxy)
-docker logs -f rexel-caddy-prod
-tail -f ~/rexel-modern/backend/logs/access.log
+docker logs -f kesimarket-caddy-prod
+tail -f ~/kesimarket-modern/backend/logs/access.log
 
 # Logs application
-docker logs -f rexel-backend-prod
+docker logs -f kesimarket-backend-prod
 ```
 
 ---
@@ -47,7 +47,7 @@ Backend API REST moderne avec AdonisJS 6, PostgreSQL, MinIO et architecture Clea
 1. **Cloner et installer les dépendances**
 
 ```bash
-cd rexel-modern-backend
+cd kesimarket-modern-backend
 npm install
 ```
 
@@ -178,7 +178,7 @@ apiClient.interceptors.request.use((config) => {
 ### PostgreSQL
 
 - **Port** : 5432
-- **Base** : rexel_modern
+- **Base** : kesimarket_modern
 - **User** : postgres
 - **Password** : password
 
@@ -212,7 +212,7 @@ docker-compose restart
 - **[scripts/setup-directories.sh](./scripts/setup-directories.sh)** - Préparation des dossiers VPS
 
 ### Architecture Partagée
-- **[../rexel-modern/DEPLOYMENT-SHARED.md](../rexel-modern/DEPLOYMENT-SHARED.md)** - Architecture Caddy partagée Frontend/Backend
+- **[../kesimarket-modern/DEPLOYMENT-SHARED.md](../kesimarket-modern/DEPLOYMENT-SHARED.md)** - Architecture Caddy partagée Frontend/Backend
 
 # Arrêter les services
 docker-compose down

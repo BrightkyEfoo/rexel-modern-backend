@@ -19,7 +19,7 @@ export default class Product extends BaseModel {
   @column()
   declare description: string | null
 
-  @column()
+  @column({ columnName: 'short_description' })
   declare shortDescription: string | null
 
   @column()
@@ -28,25 +28,25 @@ export default class Product extends BaseModel {
   @column()
   declare price: number
 
-  @column()
+  @column({ columnName: 'sale_price' })
   declare salePrice: number | null
 
-  @column()
+  @column({ columnName: 'stock_quantity' })
   declare stockQuantity: number
 
-  @column()
+  @column({ columnName: 'manage_stock' })
   declare manageStock: boolean
 
-  @column()
+  @column({ columnName: 'in_stock' })
   declare inStock: boolean
 
-  @column()
+  @column({ columnName: 'is_featured' })
   declare isFeatured: boolean
 
-  @column()
+  @column({ columnName: 'is_active' })
   declare isActive: boolean
 
-  @column()
+  @column({ columnName: 'brand_id' })
   declare brandId: number | null
 
   @column()

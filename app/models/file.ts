@@ -8,10 +8,10 @@ export default class File extends BaseModel {
   @column()
   declare filename: string
 
-  @column()
+  @column({ columnName: 'original_name' })
   declare originalName: string
 
-  @column()
+  @column({ columnName: 'mime_type' })
   declare mimeType: string
 
   @column()
@@ -26,10 +26,10 @@ export default class File extends BaseModel {
   @column()
   declare bucket: string
 
-  @column()
+  @column({ columnName: 'fileable_id' })
   declare fileableId: number | null
 
-  @column()
+  @column({ columnName: 'fileable_type' })
   declare fileableType: string | null
 
   @column.dateTime({ autoCreate: true })

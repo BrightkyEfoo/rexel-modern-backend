@@ -1,4 +1,4 @@
-# Brief Projet - Backend Rexel Modern
+# Brief Projet - Backend KesiMarket Modern
 
 ## 🎯 Objectif Principal
 **API REST moderne pour e-commerce avec authentification typée et pagination avancée**

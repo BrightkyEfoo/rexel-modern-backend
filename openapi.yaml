@@ -1,15 +1,15 @@
 openapi: 3.1.0
 info:
-  title: Rexel Modern API
-  description: API REST pour l'application e-commerce Rexel Modern
+  title: KesiMarket Modern API
+  description: API REST pour l'application e-commerce KesiMarket Modern
   version: 1.0.0
   contact:
-    name: Rexel Modern Team
-    email: contact@rexel-modern.com
+    name: KesiMarket Modern Team
+    email: contact@kesimarket-modern.com
 servers:
   - url: http://localhost:3333
     description: Serveur de développement
-  - url: https://api.rexel-modern.com
+  - url: https://api.kesimarket-modern.com
     description: Serveur de production
 
 components:

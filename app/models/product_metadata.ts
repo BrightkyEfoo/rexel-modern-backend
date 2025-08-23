@@ -7,7 +7,7 @@ export default class ProductMetadata extends BaseModel {
   @column({ isPrimary: true })
   declare id: number
 
-  @column()
+  @column({ columnName: 'product_id' })
   declare productId: number
 
   @column()
@@ -16,7 +16,7 @@ export default class ProductMetadata extends BaseModel {
   @column()
   declare value: string | null
 
-  @column()
+  @column({ columnName: 'value_type' })
   declare valueType: 'string' | 'number' | 'boolean' | 'json'
 
   @column.dateTime({ autoCreate: true })

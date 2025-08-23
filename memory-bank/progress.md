@@ -1,4 +1,4 @@
-# Progression - Backend Rexel Modern
+# Progression - Backend KesiMarket Modern
 
 ## 🎯 Statut Global : API REST AVANCÉE + AUTHENTIFICATION TYPÉE + FILTRES DYNAMIQUES + HIÉRARCHIE DES CATÉGORIES ✅
 

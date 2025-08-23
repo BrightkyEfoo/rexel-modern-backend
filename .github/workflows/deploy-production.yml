@@ -32,12 +32,12 @@ on:
           - development
 
 env:
-  DOCKER_IMAGE_NAME: rexel-backend-prod
-  VPS_DEPLOY_PATH: ~/rexel-modern/backend
-  CONTAINER_NAME: rexel-backend-prod
+  DOCKER_IMAGE_NAME: kesimarket-backend-prod
+  VPS_DEPLOY_PATH: ~/kesimarket-modern/backend
+  CONTAINER_NAME: kesimarket-backend-prod
   CONTAINER_PORT: 3333
-  DB_CONTAINER_NAME: rexel-postgres-prod
-  MINIO_CONTAINER_NAME: rexel-minio-prod
+  DB_CONTAINER_NAME: kesimarket-postgres-prod
+  MINIO_CONTAINER_NAME: kesimarket-minio-prod
 
 jobs:
   prepare-directory:
@@ -146,7 +146,7 @@ jobs:
             
             # Setup shared Docker network for frontend/backend communication
             echo "=== Setting up shared Docker network ==="
-            NETWORK_NAME="rexel-net"
+            NETWORK_NAME="kesimarket-net"
             
             # Determine if we need to use sudo
             USE_SUDO=""
@@ -284,15 +284,15 @@ jobs:
       
       - name: Save Docker image to tar
         run: |
-          docker save ${{ steps.tag.outputs.image-tag }} > rexel-backend-prod.tar
-          ls -lh rexel-backend-prod.tar
+          docker save ${{ steps.tag.outputs.image-tag }} > kesimarket-backend-prod.tar
+          ls -lh kesimarket-backend-prod.tar
 
       - name: Upload Docker image and compose file
         uses: actions/upload-artifact@v4
         with:
           name: docker-image-prod
           path: |
-            rexel-backend-prod.tar
+            kesimarket-backend-prod.tar
             docker-compose.prod.yml
             Caddyfile
           retention-days: 7
@@ -315,7 +315,7 @@ jobs:
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_PRIVATE_KEY }}
           port: 22
-          source: "rexel-backend-prod.tar,docker-compose.prod.yml,Caddyfile"
+          source: "kesimarket-backend-prod.tar,docker-compose.prod.yml,Caddyfile"
           target: ${{ env.VPS_DEPLOY_PATH }}/
       
       - name: Create backup and organize files
@@ -330,12 +330,12 @@ jobs:
             mkdir -p ${{ env.VPS_DEPLOY_PATH }}/images
             
             # Backup previous image if exists
-            if [ -f ${{ env.VPS_DEPLOY_PATH }}/images/rexel-backend-prod-current.tar ]; then
-              mv ${{ env.VPS_DEPLOY_PATH }}/images/rexel-backend-prod-current.tar ${{ env.VPS_DEPLOY_PATH }}/backups/rexel-backend-prod-backup-$(date +%Y%m%d-%H%M%S).tar
+            if [ -f ${{ env.VPS_DEPLOY_PATH }}/images/kesimarket-backend-prod-current.tar ]; then
+              mv ${{ env.VPS_DEPLOY_PATH }}/images/kesimarket-backend-prod-current.tar ${{ env.VPS_DEPLOY_PATH }}/backups/kesimarket-backend-prod-backup-$(date +%Y%m%d-%H%M%S).tar
             fi
             
             # Move new image to images directory
-            mv ${{ env.VPS_DEPLOY_PATH }}/rexel-backend-prod.tar ${{ env.VPS_DEPLOY_PATH }}/images/rexel-backend-prod-current.tar
+            mv ${{ env.VPS_DEPLOY_PATH }}/kesimarket-backend-prod.tar ${{ env.VPS_DEPLOY_PATH }}/images/kesimarket-backend-prod-current.tar
             
             # Verify Caddyfile exists
             if [ ! -f ${{ env.VPS_DEPLOY_PATH }}/Caddyfile ]; then
@@ -451,7 +451,7 @@ jobs:
             
             # Create shared Docker network if it doesn't exist
             echo "🌐 Checking shared Docker network..."
-            NETWORK_NAME="rexel-net"
+            NETWORK_NAME="kesimarket-net"
             
             echo "📋 Current networks:"
             ${USE_SUDO}docker network ls
@@ -484,11 +484,11 @@ jobs:
             fi
             
             # Load the new Docker image
-            ${USE_SUDO}docker load < images/rexel-backend-prod-current.tar
+            ${USE_SUDO}docker load < images/kesimarket-backend-prod-current.tar
             
             # Tag the loaded image as latest for docker-compose
-            IMAGE_NAME=$(${USE_SUDO}docker images --format "table {{.Repository}}:{{.Tag}}" | grep rexel-backend-prod | grep -v latest | head -n 1)
-            ${USE_SUDO}docker tag $IMAGE_NAME rexel-backend-prod:latest
+            IMAGE_NAME=$(${USE_SUDO}docker images --format "table {{.Repository}}:{{.Tag}}" | grep kesimarket-backend-prod | grep -v latest | head -n 1)
+            ${USE_SUDO}docker tag $IMAGE_NAME kesimarket-backend-prod:latest
             
             # Stop existing services
             echo 'Stopping existing services...'
@@ -496,14 +496,14 @@ jobs:
             
             # Final network verification before starting services
             echo "🔍 Final network verification before starting services..."
-            if ! ${USE_SUDO}docker network ls | grep -q "rexel-net"; then
-              echo "❌ CRITICAL: Network rexel-net still not found after creation attempt!"
+            if ! ${USE_SUDO}docker network ls | grep -q "kesimarket-net"; then
+              echo "❌ CRITICAL: Network kesimarket-net still not found after creation attempt!"
               echo "📋 Available networks:"
               ${USE_SUDO}docker network ls
               exit 1
             fi
             
-            echo "✅ Network rexel-net confirmed ready"
+            echo "✅ Network kesimarket-net confirmed ready"
             
             # Start infrastructure services first (db, minio, redis)
             echo 'Starting infrastructure services...'
@@ -526,7 +526,7 @@ jobs:
                   echo "📋 Database container logs:"
                   ${USE_SUDO}docker compose -f docker-compose.prod.yml logs db
                   echo "📋 Database container status:"
-                  ${USE_SUDO}docker ps -f name=rexel-postgres-prod
+                  ${USE_SUDO}docker ps -f name=kesimarket-postgres-prod
                   exit 1
                 fi
                 echo "⏳ Database not ready yet, waiting 5 seconds..."
@@ -549,7 +549,7 @@ jobs:
             # Create MinIO bucket if not exists (with fallback)
             BUCKET_NAME="${{ secrets.MINIO_BUCKET }}"
             if [ -z "$BUCKET_NAME" ]; then
-              BUCKET_NAME="rexel-storage"
+              BUCKET_NAME="kesimarket-storage"
               echo "⚠️  MINIO_BUCKET not set, using default: $BUCKET_NAME"
             fi
             
@@ -596,11 +596,11 @@ jobs:
             # Check if services are running
             echo 'Checking service status...'
             echo '📋 Container Status:'
-            ${USE_SUDO}docker ps -f name=rexel- --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+            ${USE_SUDO}docker ps -f name=kesimarket- --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
             
             # Check main containers
             app_running=$(${USE_SUDO}docker ps -q -f name=${{ env.CONTAINER_NAME }})
-            caddy_running=$(${USE_SUDO}docker ps -q -f name=rexel-caddy-prod)
+            caddy_running=$(${USE_SUDO}docker ps -q -f name=kesimarket-caddy-prod)
             
             if [ ! -z "$app_running" ]; then
               echo '✅ Application container is running!'
@@ -739,17 +739,17 @@ jobs:
             
             # Check container status
             echo "📋 Container Status:"
-            ${USE_SUDO}docker ps -f name=rexel- --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+            ${USE_SUDO}docker ps -f name=kesimarket- --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
             
             # Check Caddy specifically
             echo -e "\n🌐 Caddy Reverse Proxy Status:"
-            if [ $(${USE_SUDO}docker ps -q -f name=rexel-caddy-prod) ]; then
+            if [ $(${USE_SUDO}docker ps -q -f name=kesimarket-caddy-prod) ]; then
               echo "✅ Caddy container is running"
-              ${USE_SUDO}docker logs --tail=5 rexel-caddy-prod
+              ${USE_SUDO}docker logs --tail=5 kesimarket-caddy-prod
             else
               echo "❌ Caddy container not running"
               echo "Available containers:"
-              ${USE_SUDO}docker ps -a -f name=rexel-caddy-prod
+              ${USE_SUDO}docker ps -a -f name=kesimarket-caddy-prod
             fi
             
             # Check application logs (last 10 lines)
@@ -774,8 +774,8 @@ jobs:
             
             # Simple container check instead of API test
             echo -e "\n🌐 Services Status:"
-            app_running=$(${USE_SUDO}docker ps -q -f name=rexel-backend-prod)
-            caddy_running=$(${USE_SUDO}docker ps -q -f name=rexel-caddy-prod)
+            app_running=$(${USE_SUDO}docker ps -q -f name=kesimarket-backend-prod)
+            caddy_running=$(${USE_SUDO}docker ps -q -f name=kesimarket-caddy-prod)
             
             if [ ! -z "$app_running" ]; then
               echo "✅ Application container is running"
@@ -827,7 +827,7 @@ jobs:
             
             # Keep only the 3 most recent backup images
             cd ${{ env.VPS_DEPLOY_PATH }}/backups
-            ls -t rexel-backend-prod-backup-*.tar 2>/dev/null | tail -n +4 | xargs -r rm -f
+            ls -t kesimarket-backend-prod-backup-*.tar 2>/dev/null | tail -n +4 | xargs -r rm -f
             
             # Clean up old logs (keep last 7 days)
             find ${{ env.VPS_DEPLOY_PATH }} -name "*.log" -type f -mtime +7 -delete 2>/dev/null || true
@@ -836,7 +836,7 @@ jobs:
 
       - name: Deployment Summary
         run: |
-          echo "## 🚀 Rexel Modern Backend Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "## 🚀 KesiMarket Modern Backend Deployment Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| Setting | Value |" >> $GITHUB_STEP_SUMMARY
           echo "|---------|-------|" >> $GITHUB_STEP_SUMMARY
@@ -851,7 +851,7 @@ jobs:
           echo "| **Deploy Path** | ${{ env.VPS_DEPLOY_PATH }} |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### 📋 Services Deployed" >> $GITHUB_STEP_SUMMARY
-          echo "- 🚀 **Rexel Backend** (AdonisJS 6)" >> $GITHUB_STEP_SUMMARY
+          echo "- 🚀 **KesiMarket Backend** (AdonisJS 6)" >> $GITHUB_STEP_SUMMARY
           echo "- 🌐 **Caddy Reverse Proxy** (Load Balancer & SSL)" >> $GITHUB_STEP_SUMMARY
           echo "- 🗄️ **PostgreSQL Database**" >> $GITHUB_STEP_SUMMARY
           echo "- 📦 **MinIO Object Storage**" >> $GITHUB_STEP_SUMMARY

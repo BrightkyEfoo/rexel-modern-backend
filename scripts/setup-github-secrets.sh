@@ -17,7 +17,7 @@ ENV_FILE="env.txt"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 
-echo -e "${BLUE}🚀 GitHub Secrets Setup pour Rexel Modern${NC}"
+echo -e "${BLUE}🚀 GitHub Secrets Setup pour KesiMarket Modern${NC}"
 echo "=================================="
 
 # Vérifier que gh CLI est installé
@@ -242,10 +242,10 @@ setup_secrets() {
                 ;;
             "MINIO_ROOT_USER")
                 if [[ "$env_name" == "production" ]]; then
-                    prod_minio_user="${value/minioadmin/rexel_minio_prod_$(openssl rand -hex 8)}"
+                    prod_minio_user="${value/minioadmin/kesimarket_minio_prod_$(openssl rand -hex 8)}"
                     create_secret "$env_name" "$key" "$prod_minio_user"
                 else
-                    staging_minio_user="${value/minioadmin/rexel_minio_staging_$(openssl rand -hex 8)}"
+                    staging_minio_user="${value/minioadmin/kesimarket_minio_staging_$(openssl rand -hex 8)}"
                     create_secret "$env_name" "$key" "$staging_minio_user"
                 fi
                 ;;
@@ -329,8 +329,8 @@ setup_secrets() {
                 if [[ "$env_name" == "production" ]]; then
                     create_secret "$env_name" "$key" "$value"
                 else
-                    staging_value="${value/rexel-modern.com/staging-rexel-modern.com}"
-                    staging_value="${staging_value/Rexel Modern/Rexel Modern Staging}"
+                    staging_value="${value/kesimarket-modern.com/staging-kesimarket-modern.com}"
+                    staging_value="${staging_value/KesiMarket Modern/KesiMarket Modern Staging}"
                     create_secret "$env_name" "$key" "$staging_value"
                 fi
                 ;;
@@ -432,7 +432,7 @@ main() {
 if [[ "$1" == "-h" || "$1" == "--help" ]]; then
     echo "Usage: $0 [production|staging|both|repository]"
     echo ""
-    echo "Script de configuration des secrets GitHub pour Rexel Modern"
+    echo "Script de configuration des secrets GitHub pour KesiMarket Modern"
     echo "Configure automatiquement les variables d'environnement pour:"
     echo "• AdonisJS (APP_KEY, JWT_SECRET, NODE_ENV)"
     echo "• PostgreSQL (DB_HOST, DB_PASSWORD, DB_DATABASE)"

@@ -67,8 +67,8 @@ on:
           - 'false'
 
 env:
-  CONTAINER_NAME: rexel-backend-prod
-  VPS_DEPLOY_PATH: ~/rexel-modern/backend
+  CONTAINER_NAME: kesimarket-backend-prod
+  VPS_DEPLOY_PATH: ~/kesimarket-modern/backend
 
 jobs:
   validate-inputs:
@@ -143,10 +143,10 @@ jobs:
             
             # Check if containers are running
             echo "📋 Container Status:"
-            ${USE_SUDO}docker ps -f name=rexel- --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+            ${USE_SUDO}docker ps -f name=kesimarket- --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
             
             # Check Caddy proxy status
-            if [ $(${USE_SUDO}docker ps -q -f name=rexel-caddy-prod) ]; then
+            if [ $(${USE_SUDO}docker ps -q -f name=kesimarket-caddy-prod) ]; then
               echo "✅ Caddy reverse proxy is running"
             else
               echo "⚠️  Caddy reverse proxy is not running (may impact external access)"

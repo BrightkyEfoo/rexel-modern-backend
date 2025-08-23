@@ -17,16 +17,16 @@ Excellente idée ! Centraliser Caddy sur le backend pour servir à la fois le fr
 
 ### 2.1. **Créer un réseau Docker partagé**
 
-- Créer un réseau Docker nommé (ex: `rexel-net`) qui sera utilisé par les deux `docker-compose`.
+- Créer un réseau Docker nommé (ex: `kesimarket-net`) qui sera utilisé par les deux `docker-compose`.
 
 ### 2.2. **Adapter les docker-compose**
 
-#### **Backend (`rexel-modern-backend/docker-compose.prod.yml`)**
-- Ajouter le réseau `rexel-net` à tous les services (backend, caddy, etc).
+#### **Backend (`kesimarket-modern-backend/docker-compose.prod.yml`)**
+- Ajouter le réseau `kesimarket-net` à tous les services (backend, caddy, etc).
 - Caddy doit être sur ce réseau.
 
-#### **Frontend (`rexel-modern/docker-compose.prod.yml`)**
-- Ajouter le réseau `rexel-net` au service frontend (Next.js).
+#### **Frontend (`kesimarket-modern/docker-compose.prod.yml`)**
+- Ajouter le réseau `kesimarket-net` au service frontend (Next.js).
 - **Ne pas inclure Caddy** dans ce compose.
 
 ### 2.3. **Adapter le Caddyfile du backend**
@@ -38,7 +38,7 @@ Excellente idée ! Centraliser Caddy sur le backend pour servir à la fois le fr
 ### 2.4. **Déploiement**
 
 - Démarrer le réseau partagé (une seule fois) :  
-  `docker network create rexel-net`
+  `docker network create kesimarket-net`
 - Démarrer le backend (`docker-compose -f docker-compose.prod.yml up -d`)  
   (il va créer Caddy, backend, etc.)
 - Démarrer le frontend (`docker-compose -f docker-compose.prod.yml up -d`)  
@@ -54,11 +54,11 @@ Excellente idée ! Centraliser Caddy sur le backend pour servir à la fois le fr
 ## 3. **Détail des fichiers à modifier/créer**
 
 ### 3.1. **Backend : `docker-compose.prod.yml`**
-- Ajouter le réseau `rexel-net` à tous les services.
+- Ajouter le réseau `kesimarket-net` à tous les services.
 - Définir le réseau comme externe.
 
 ### 3.2. **Frontend : `docker-compose.prod.yml`**
-- Ajouter le réseau `rexel-net` au service Next.js.
+- Ajouter le réseau `kesimarket-net` au service Next.js.
 - Supprimer tout service Caddy éventuel.
 
 ### 3.3. **Caddyfile (backend)**
@@ -85,7 +85,7 @@ Excellente idée ! Centraliser Caddy sur le backend pour servir à la fois le fr
 
 ## 4. **Questions à clarifier avant exécution**
 
-1. **Nom du réseau Docker** souhaité (`rexel-net` par défaut ?)
+1. **Nom du réseau Docker** souhaité (`kesimarket-net` par défaut ?)
 2. **Nom du service frontend** dans le compose frontend (`frontend` ?)
 3. **Ports exposés** côté frontend (toujours 3000 ?)
 4. **Domaines exacts** à router (ex: `app.votredomaine.com`, `api.votredomaine.com`)
@@ -97,7 +97,7 @@ Excellente idée ! Centraliser Caddy sur le backend pour servir à la fois le fr
 
 ```mermaid
 flowchart TD
-    subgraph Docker Network: rexel-net
+    subgraph Docker Network: kesimarket-net
         Caddy
         Backend
         Frontend

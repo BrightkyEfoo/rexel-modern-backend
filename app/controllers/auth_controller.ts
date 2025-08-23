@@ -44,15 +44,6 @@ export default class AuthController {
    * Inscription d'un nouvel utilisateur
    */
   async register({ request, response }: HttpContext) {
-    console.log('🔥 REGISTER CALLED:', new Date().toISOString(), {
-      url: request.url(),
-      method: request.method(),
-      headers: {
-        'user-agent': request.header('user-agent'),
-        'referer': request.header('referer'),
-      },
-    })
-
     const payload = await request.validateUsing(registerValidator)
 
     // Vérifier si l'utilisateur existe déjà

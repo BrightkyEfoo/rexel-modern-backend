@@ -1,11 +1,11 @@
-# 🔐 Configuration des Secrets GitHub - Backend Rexel Modern
+# 🔐 Configuration des Secrets GitHub - Backend KesiMarket Modern
 
 ## 📋 Variables Requises
 
 Pour que le déploiement automatique fonctionne, les secrets suivants **DOIVENT** être configurés dans GitHub Actions.
 
 ### 🚀 Accès aux Secrets
-1. Aller sur : `https://github.com/your-org/rexel-modern-backend/settings/secrets/actions`
+1. Aller sur : `https://github.com/your-org/kesimarket-modern-backend/settings/secrets/actions`
 2. Cliquer sur **"New repository secret"**
 3. Ajouter chaque secret avec son nom exact et sa valeur
 
@@ -26,9 +26,9 @@ Pour que le déploiement automatique fonctionne, les secrets suivants **DOIVENT*
 
 | Nom | Description | Exemple |
 |-----|-------------|---------|
-| `DB_USER` | Utilisateur PostgreSQL | `rexel_user` |
+| `DB_USER` | Utilisateur PostgreSQL | `kesimarket_user` |
 | `DB_PASSWORD` | Mot de passe PostgreSQL | `secure_password_123` |
-| `DB_DATABASE` | Nom de la base | `rexel_modern` |
+| `DB_DATABASE` | Nom de la base | `kesimarket_modern` |
 
 ⚠️ **Important** : Ces valeurs seront utilisées pour créer le conteneur PostgreSQL interne.
 
@@ -40,7 +40,7 @@ Pour que le déploiement automatique fonctionne, les secrets suivants **DOIVENT*
 |-----|-------------|---------|--------|
 | `MINIO_ACCESS_KEY` | Clé d'accès MinIO | `minioadmin` | ✅ |
 | `MINIO_SECRET_KEY` | Clé secrète MinIO | `minio_secret_key_123` | ✅ |
-| `MINIO_BUCKET` | Nom du bucket | `rexel-storage` | ✅ |
+| `MINIO_BUCKET` | Nom du bucket | `kesimarket-storage` | ✅ |
 
 ---
 
@@ -114,7 +114,7 @@ openssl rand -base64 32
 ```bash
 # Se connecter au VPS et vérifier
 ssh user@your-vps-ip
-cd ~/rexel-modern/backend
+cd ~/kesimarket-modern/backend
 
 # Vérifier le fichier .env créé
 cat .env | grep -E "(DB_|MINIO_|REDIS_)" 

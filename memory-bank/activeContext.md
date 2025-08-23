@@ -1,4 +1,4 @@
-# Contexte Actif - Backend Rexel Modern
+# Contexte Actif - Backend KesiMarket Modern
 
 ## 🎯 Focus Actuel (Janvier 2025)
 **✅ API REST avec Pagination Avancée + Système de Types d'Utilisateurs Unifié + Filtres Dynamiques + Hiérarchie des Catégories**
@@ -115,7 +115,7 @@ GET /products/category/electronique?include_subcategories=true&min_price=100&max
 - ✅ **Maintenance** - Centralisation de la logique des types
 
 #### Comptes de Test Créés
-- **Admin** : `admin@rexel.com` (admin123) - Type: `ADMIN`
+- **Admin** : `admin@kesimarket.com` (admin123) - Type: `ADMIN`
 - **Customers** : 4 comptes avec différents emails (customer123) - Type: `CUSTOMER`
 
 ### ✅ API REST avec Pagination Native Lucid ORM

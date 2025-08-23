@@ -1,4 +1,4 @@
-# Patterns Système - Backend Rexel Modern
+# Patterns Système - Backend KesiMarket Modern
 
 ## 🏗️ Architecture Globale
 
@@ -351,7 +351,7 @@ export default class FileService {
       size: file.size!,
       path: uploadedFile.path,
       url: uploadedFile.url,
-      bucket: 'rexel-bucket',
+      bucket: 'kesimarket-bucket',
       fileableId: entity.id,
       fileableType: entityType
     })

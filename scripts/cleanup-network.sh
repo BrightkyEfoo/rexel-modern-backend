@@ -1,11 +1,11 @@
 #!/bin/bash
 
-# 🧹 Script de Nettoyage: Réseau Docker rexel-net
+# 🧹 Script de Nettoyage: Réseau Docker kesimarket-net
 # Nettoie et recrée le réseau partagé en cas de problème
 
 set -e
 
-NETWORK_NAME="rexel-net"
+NETWORK_NAME="kesimarket-net"
 
 echo "🧹 Nettoyage du réseau Docker partagé..."
 echo "Réseau cible: $NETWORK_NAME"
@@ -52,10 +52,10 @@ echo -e "${BLUE}🔍 Vérification du réseau '$NETWORK_NAME'...${NC}"
 if ${USE_SUDO}docker network inspect "$NETWORK_NAME" >/dev/null 2>&1; then
     echo -e "${YELLOW}🗑️  Suppression du réseau existant '$NETWORK_NAME'...${NC}"
     
-    # Arrêter les conteneurs rexel qui utilisent le réseau
-    REXEL_CONTAINERS=$(${USE_SUDO}docker ps -q -f name=rexel- 2>/dev/null || true)
+    # Arrêter les conteneurs kesimarket qui utilisent le réseau
+    REXEL_CONTAINERS=$(${USE_SUDO}docker ps -q -f name=kesimarket- 2>/dev/null || true)
     if [ ! -z "$REXEL_CONTAINERS" ]; then
-        echo "  Arrêt des conteneurs rexel..."
+        echo "  Arrêt des conteneurs kesimarket..."
         ${USE_SUDO}docker stop $REXEL_CONTAINERS || echo "  Certains conteneurs étaient déjà arrêtés"
     fi
     

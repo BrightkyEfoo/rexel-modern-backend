@@ -1,6 +1,6 @@
-# 🚀 Déploiement en Production - Rexel Modern Backend
+# 🚀 Déploiement en Production - KesiMarket Modern Backend
 
-Ce document explique comment déployer le backend Rexel Modern en production à l'aide de GitHub Actions et Docker.
+Ce document explique comment déployer le backend KesiMarket Modern en production à l'aide de GitHub Actions et Docker.
 
 ## 📋 Prérequis
 
@@ -32,9 +32,9 @@ JWT_SECRET=votre-jwt-secret-super-secure-64-caracteres
 ```
 DB_HOST=db
 DB_PORT=5432
-DB_USER=rexel_user
+DB_USER=kesimarket_user
 DB_PASSWORD=mot-de-passe-super-secure
-DB_DATABASE=rexel_prod
+DB_DATABASE=kesimarket_prod
 ```
 
 ### Secrets MinIO
@@ -44,7 +44,7 @@ MINIO_PORT=9000
 MINIO_ACCESS_KEY=minio-access-key
 MINIO_SECRET_KEY=minio-secret-key-super-secure
 MINIO_USE_SSL=false
-MINIO_BUCKET=rexel-files
+MINIO_BUCKET=kesimarket-files
 ```
 
 ### Secrets Redis (optionnel)
@@ -74,13 +74,13 @@ FRONTEND_URL=https://votre-frontend.com
 Le workflow déploie l'architecture suivante :
 
 ```
-~/rexel-modern/backend/
+~/kesimarket-modern/backend/
 ├── docker-compose.prod.yml
 ├── .env
 ├── images/
-│   └── rexel-backend-prod-current.tar
+│   └── kesimarket-backend-prod-current.tar
 ├── backups/
-│   └── rexel-backend-prod-backup-*.tar
+│   └── kesimarket-backend-prod-backup-*.tar
 ├── uploads/
 └── minio-data/
 ```
@@ -89,7 +89,7 @@ Le workflow déploie l'architecture suivante :
 
 ### ⚠️ Prérequis : Réseau Docker Partagé
 
-**IMPORTANT**: Avant le premier déploiement, le réseau `rexel-net` doit être créé sur le VPS.
+**IMPORTANT**: Avant le premier déploiement, le réseau `kesimarket-net` doit être créé sur le VPS.
 
 #### Solution automatique (workflow GitHub)
 Le workflow crée automatiquement le réseau lors du déploiement.
@@ -100,10 +100,10 @@ Le workflow crée automatiquement le réseau lors du déploiement.
 ./scripts/setup-docker-network.sh
 
 # Ou manuellement
-docker network create rexel-net
+docker network create kesimarket-net
 ```
 
-Si vous obtenez l'erreur `network rexel-net declared as external, but could not be found`, c'est que ce réseau n'existe pas encore. Automatique
+Si vous obtenez l'erreur `network kesimarket-net declared as external, but could not be found`, c'est que ce réseau n'existe pas encore. Automatique
 
 ### Déploiement par push
 ```bash
@@ -147,7 +147,7 @@ git push origin main
 
 ### Vérifier l'état des services
 ```bash
-cd ~/rexel-modern/backend
+cd ~/kesimarket-modern/backend
 docker compose -f docker-compose.prod.yml ps
 ```
 
@@ -163,7 +163,7 @@ docker compose -f docker-compose.prod.yml logs -f
 ### Connexion aux services
 ```bash
 # Base de données
-docker compose -f docker-compose.prod.yml exec db psql -U rexel_user -d rexel_prod
+docker compose -f docker-compose.prod.yml exec db psql -U kesimarket_user -d kesimarket_prod
 
 # Application (shell)
 docker compose -f docker-compose.prod.yml exec app sh
@@ -175,10 +175,10 @@ docker compose -f docker-compose.prod.yml exec minio mc ls local/
 ### Sauvegardes manuelles
 ```bash
 # Sauvegarde de la base de données
-docker compose -f docker-compose.prod.yml exec db pg_dump -U rexel_user rexel_prod > backup-$(date +%Y%m%d-%H%M%S).sql
+docker compose -f docker-compose.prod.yml exec db pg_dump -U kesimarket_user kesimarket_prod > backup-$(date +%Y%m%d-%H%M%S).sql
 
 # Sauvegarde des fichiers MinIO
-docker compose -f docker-compose.prod.yml exec minio mc mirror local/rexel-files/ /backups/minio-$(date +%Y%m%d-%H%M%S)/
+docker compose -f docker-compose.prod.yml exec minio mc mirror local/kesimarket-files/ /backups/minio-$(date +%Y%m%d-%H%M%S)/
 ```
 
 ## 🔄 Rollback
@@ -186,17 +186,17 @@ docker compose -f docker-compose.prod.yml exec minio mc mirror local/rexel-files
 En cas de problème, vous pouvez revenir à la version précédente :
 
 ```bash
-cd ~/rexel-modern/backend
+cd ~/kesimarket-modern/backend
 
 # Arrêter les services
 docker compose -f docker-compose.prod.yml down
 
 # Restaurer l'image précédente
-cp backups/rexel-backend-prod-backup-YYYYMMDD-HHMMSS.tar images/rexel-backend-prod-current.tar
+cp backups/kesimarket-backend-prod-backup-YYYYMMDD-HHMMSS.tar images/kesimarket-backend-prod-current.tar
 
 # Charger et redémarrer
-docker load < images/rexel-backend-prod-current.tar
-docker tag $(docker images --format "table {{.Repository}}:{{.Tag}}" | grep rexel-backend-prod | grep -v latest | head -n 1) rexel-backend-prod:latest
+docker load < images/kesimarket-backend-prod-current.tar
+docker tag $(docker images --format "table {{.Repository}}:{{.Tag}}" | grep kesimarket-backend-prod | grep -v latest | head -n 1) kesimarket-backend-prod:latest
 docker compose -f docker-compose.prod.yml up -d
 ```
 
@@ -220,7 +220,7 @@ docker compose -f docker-compose.prod.yml exec app node ace migration:status
 docker compose -f docker-compose.prod.yml ps db
 
 # Tester la connexion
-docker compose -f docker-compose.prod.yml exec db pg_isready -U rexel_user
+docker compose -f docker-compose.prod.yml exec db pg_isready -U kesimarket_user
 ```
 
 ### MinIO inaccessible
@@ -309,7 +309,7 @@ ssh votre-utilisateur@votre-vps
 2. **Téléchargez et exécutez le script de dépannage** :
 ```bash
 # Télécharger le script
-curl -O https://raw.githubusercontent.com/votre-repo/rexel-modern-backend/main/scripts/fix-docker-permissions.sh
+curl -O https://raw.githubusercontent.com/votre-repo/kesimarket-modern-backend/main/scripts/fix-docker-permissions.sh
 
 # Rendre exécutable
 chmod +x fix-docker-permissions.sh
@@ -384,7 +384,7 @@ Une fois les permissions Docker corrigées :
 1. **Relancer le workflow GitHub** depuis l'interface Actions
 2. **Ou déployer manuellement** :
 ```bash
-cd ~/rexel-modern/backend
+cd ~/kesimarket-modern/backend
 docker compose -f docker-compose.prod.yml up -d
 ```
 

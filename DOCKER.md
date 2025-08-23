@@ -1,6 +1,6 @@
-# Docker Configuration - Rexel Modern Backend
+# Docker Configuration - KesiMarket Modern Backend
 
-Ce document détaille la configuration Docker pour le backend AdonisJS du projet Rexel Modern.
+Ce document détaille la configuration Docker pour le backend AdonisJS du projet KesiMarket Modern.
 
 ## 🏗️ Architecture Docker
 
@@ -84,10 +84,10 @@ docker-compose exec app npm run migration:run
 docker-compose exec app npm run db:seed
 
 # Accès à la base PostgreSQL
-docker-compose exec postgres psql -U postgres -d rexel_modern
+docker-compose exec postgres psql -U postgres -d kesimarket_modern
 
 # Backup de la base
-docker-compose exec postgres pg_dump -U postgres rexel_modern > backup.sql
+docker-compose exec postgres pg_dump -U postgres kesimarket_modern > backup.sql
 ```
 
 ### Développement

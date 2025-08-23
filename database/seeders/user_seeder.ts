@@ -10,8 +10,8 @@ export default class UserSeeder extends BaseSeeder {
     // Données des utilisateurs
     const usersData = [
       {
-        fullName: 'Administrateur Rexel',
-        email: 'admin@rexel.com',
+        fullName: 'Administrateur KesiMarket',
+        email: 'admin@kesimarket.com',
         password: 'admin123',
         type: UserType.ADMIN,
       },

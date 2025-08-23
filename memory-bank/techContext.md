@@ -1,4 +1,4 @@
-# Contexte Technique - Backend Rexel Modern
+# Contexte Technique - Backend KesiMarket Modern
 
 ## 🛠️ Stack Technologique
 
@@ -33,8 +33,8 @@
 # Base de données
 DB_HOST=localhost
 DB_PORT=5432
-DB_NAME=rexel_db
-DB_USER=rexel_user
+DB_NAME=kesimarket_db
+DB_USER=kesimarket_user
 DB_PASSWORD=secure_password
 
 # MinIO
@@ -42,7 +42,7 @@ MINIO_ENDPOINT=localhost
 MINIO_PORT=9000
 MINIO_ACCESS_KEY=minio_access_key
 MINIO_SECRET_KEY=minio_secret_key
-MINIO_BUCKET=rexel-bucket
+MINIO_BUCKET=kesimarket-bucket
 
 # JWT
 JWT_SECRET=your_jwt_secret_key
@@ -346,13 +346,13 @@ services:
   db:
     image: postgres:15-alpine
     environment:
-      POSTGRES_DB: rexel_db
-      POSTGRES_USER: rexel_user
+      POSTGRES_DB: kesimarket_db
+      POSTGRES_USER: kesimarket_user
       POSTGRES_PASSWORD: secure_password
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U rexel_user -d rexel_db"]
+      test: ["CMD-SHELL", "pg_isready -U kesimarket_user -d kesimarket_db"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -386,7 +386,7 @@ volumes:
 ```yaml
 openapi: 3.1.0
 info:
-  title: Rexel Modern API
+  title: KesiMarket Modern API
   version: 1.0.0
   description: API REST pour e-commerce avec pagination
 

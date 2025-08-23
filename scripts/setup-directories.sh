@@ -1,16 +1,16 @@
 #!/bin/bash
 
-# Script pour initialiser la structure des dossiers Rexel Modern Backend
+# Script pour initialiser la structure des dossiers KesiMarket Modern Backend
 # Usage: ./scripts/setup-directories.sh [base_path]
 
 set -e
 
 # Configuration
-BASE_PATH="${1:-$HOME/rexel-modern/backend}"
+BASE_PATH="${1:-$HOME/kesimarket-modern/backend}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 
-echo "🚀 Setup des dossiers Rexel Modern Backend"
+echo "🚀 Setup des dossiers KesiMarket Modern Backend"
 echo "📁 Dossier de base: $BASE_PATH"
 echo ""
 

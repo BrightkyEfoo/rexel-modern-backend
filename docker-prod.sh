@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Rexel Modern Backend - Production Docker Management Script
+# KesiMarket Modern Backend - Production Docker Management Script
 # Usage: ./docker-prod.sh [command]
 
 set -e
@@ -16,7 +16,7 @@ NC='\033[0m' # No Color
 COMPOSE_FILE="docker-compose.prod.yml"
 ENV_FILE=".env.production"
 BACKUP_DIR="./backups"
-DATA_PATH="/opt/rexel-modern/data"
+DATA_PATH="/opt/kesimarket-modern/data"
 
 # Helper functions
 log_info() {
@@ -171,7 +171,7 @@ backup_database() {
     BACKUP_FILE="$BACKUP_DIR/backup-$(date +%Y%m%d-%H%M%S).sql"
     
     log_info "Creating database backup: $BACKUP_FILE"
-    docker-compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" exec -T db pg_dump -U ${DB_USER:-postgres} -d ${DB_DATABASE:-rexel_prod} > "$BACKUP_FILE"
+    docker-compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" exec -T db pg_dump -U ${DB_USER:-postgres} -d ${DB_DATABASE:-kesimarket_prod} > "$BACKUP_FILE"
     
     # Compress backup
     gzip "$BACKUP_FILE"
@@ -209,9 +209,9 @@ restore_database() {
     
     # Decompress if needed
     if [[ "$BACKUP_FILE" == *.gz ]]; then
-        gunzip -c "$BACKUP_FILE" | docker-compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" exec -T db psql -U ${DB_USER:-postgres} -d ${DB_DATABASE:-rexel_prod}
+        gunzip -c "$BACKUP_FILE" | docker-compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" exec -T db psql -U ${DB_USER:-postgres} -d ${DB_DATABASE:-kesimarket_prod}
     else
-        docker-compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" exec -T db psql -U ${DB_USER:-postgres} -d ${DB_DATABASE:-rexel_prod} < "$BACKUP_FILE"
+        docker-compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" exec -T db psql -U ${DB_USER:-postgres} -d ${DB_DATABASE:-kesimarket_prod} < "$BACKUP_FILE"
     fi
     
     log_success "Database restored successfully"
@@ -324,7 +324,7 @@ case "${1:-help}" in
         setup_ssl
         ;;
     "help"|*)
-        echo "Rexel Modern Backend - Production Docker Management"
+        echo "KesiMarket Modern Backend - Production Docker Management"
         echo ""
         echo "Usage: $0 [command] [options]"
         echo ""

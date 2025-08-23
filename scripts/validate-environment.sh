@@ -5,7 +5,7 @@
 
 set -e
 
-echo "🚀 Validation de la configuration Backend Rexel Modern..."
+echo "🚀 Validation de la configuration Backend KesiMarket Modern..."
 echo "=================================================="
 
 # Colors for output
@@ -123,11 +123,11 @@ echo "--------------------------------------"
 if command -v docker &> /dev/null; then
     echo -e "✅ ${GREEN}Docker${NC} - Installé"
     
-    # Check if rexel-net network exists
-    if docker network ls | grep -q "rexel-net"; then
-        echo -e "✅ ${GREEN}Réseau rexel-net${NC} - Existe"
+    # Check if kesimarket-net network exists
+    if docker network ls | grep -q "kesimarket-net"; then
+        echo -e "✅ ${GREEN}Réseau kesimarket-net${NC} - Existe"
     else
-        echo -e "⚠️  ${YELLOW}Réseau rexel-net${NC} - Manquant (sera créé automatiquement)"
+        echo -e "⚠️  ${YELLOW}Réseau kesimarket-net${NC} - Manquant (sera créé automatiquement)"
     fi
 else
     echo -e "❌ ${RED}Docker${NC} - Non installé ou non accessible"
@@ -154,8 +154,8 @@ fi
 
 echo ""
 echo -e "${BLUE}🔗 Liens utiles:${NC}"
-echo "- GitHub Secrets: https://github.com/your-org/rexel-modern-backend/settings/secrets/actions"
+echo "- GitHub Secrets: https://github.com/your-org/kesimarket-modern-backend/settings/secrets/actions"
 echo "- Documentation: ./DEPLOYMENT.md"
-echo "- Dépannage: ../rexel-modern/DEPLOYMENT-SHARED.md"
+echo "- Dépannage: ../kesimarket-modern/DEPLOYMENT-SHARED.md"
 
 echo "" 

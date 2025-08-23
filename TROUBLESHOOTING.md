@@ -1,4 +1,4 @@
-# Troubleshooting - Rexel Modern Backend
+# Troubleshooting - KesiMarket Modern Backend
 
 ## 🚨 Problèmes Courants de Déploiement
 
@@ -6,7 +6,7 @@
 
 **Erreur :**
 ```
-error mounting "/home/user/rexel-modern/backend/Caddyfile" to rootfs at "/etc/caddy/Caddyfile": 
+error mounting "/home/user/kesimarket-modern/backend/Caddyfile" to rootfs at "/etc/caddy/Caddyfile": 
 cannot create subdirectories: not a directory
 ```
 
@@ -15,10 +15,10 @@ cannot create subdirectories: not a directory
 **Solution :**
 ```bash
 # Vérifier la présence du fichier
-ls -la ~/rexel-modern/backend/Caddyfile
+ls -la ~/kesimarket-modern/backend/Caddyfile
 
 # Si manquant, le copier depuis le repository
-cp /path/to/repo/Caddyfile ~/rexel-modern/backend/
+cp /path/to/repo/Caddyfile ~/kesimarket-modern/backend/
 
 # Relancer le déploiement
 docker compose -f docker-compose.prod.yml up -d caddy
@@ -29,7 +29,7 @@ docker compose -f docker-compose.prod.yml up -d caddy
 **Diagnostic :**
 ```bash
 # Vérifier les logs Caddy
-docker logs rexel-caddy-prod
+docker logs kesimarket-caddy-prod
 
 # Vérifier la syntaxe Caddyfile
 docker run --rm -v $(pwd)/Caddyfile:/etc/caddy/Caddyfile:ro \
@@ -46,13 +46,13 @@ docker run --rm -v $(pwd)/Caddyfile:/etc/caddy/Caddyfile:ro \
 **Diagnostic :**
 ```bash
 # Voir les logs application
-docker logs rexel-backend-prod
+docker logs kesimarket-backend-prod
 
 # Vérifier les variables d'environnement
-docker exec rexel-backend-prod env | grep -E "(DB_|MINIO_)"
+docker exec kesimarket-backend-prod env | grep -E "(DB_|MINIO_)"
 
 # Tester la connexion DB
-docker exec rexel-backend-prod node ace migration:status
+docker exec kesimarket-backend-prod node ace migration:status
 ```
 
 **Solutions :**
@@ -65,12 +65,12 @@ docker exec rexel-backend-prod node ace migration:status
 **Diagnostic :**
 ```bash
 # Statut de tous les containers
-docker ps -a -f name=rexel-
+docker ps -a -f name=kesimarket-
 
 # Logs spécifiques
-docker logs rexel-postgres-prod
-docker logs rexel-minio-prod
-docker logs rexel-redis-prod
+docker logs kesimarket-postgres-prod
+docker logs kesimarket-minio-prod
+docker logs kesimarket-redis-prod
 ```
 
 **Solutions courantes :**
@@ -83,10 +83,10 @@ docker logs rexel-redis-prod
 ### Status Général
 ```bash
 # Structure des dossiers
-ls -la ~/rexel-modern/backend/
+ls -la ~/kesimarket-modern/backend/
 
 # Status des containers
-docker ps -a -f name=rexel-
+docker ps -a -f name=kesimarket-
 
 # Logs récents de tous les services
 docker compose -f docker-compose.prod.yml logs --tail=20
@@ -101,10 +101,10 @@ curl http://localhost:3333/health
 curl http://localhost/health
 
 # Test base de données
-docker exec rexel-backend-prod node ace migration:status
+docker exec kesimarket-backend-prod node ace migration:status
 
 # Test MinIO
-docker exec rexel-minio-prod mc ls local/
+docker exec kesimarket-minio-prod mc ls local/
 ```
 
 ### Nettoyage et Redémarrage
@@ -141,7 +141,7 @@ echo "=== Health Check Manuel ==="
 
 # Containers
 echo "📋 Containers actifs:"
-docker ps -f name=rexel- --format "table {{.Names}}\t{{.Status}}"
+docker ps -f name=kesimarket- --format "table {{.Names}}\t{{.Status}}"
 
 # Ports
 echo -e "\n🌐 Ports écoutés:"
@@ -160,7 +160,7 @@ En cas de problème majeur :
 
 1. **Sauvegarde** (si nécessaire)
    ```bash
-   docker exec rexel-postgres-prod pg_dump -U postgres rexel_modern > backup.sql
+   docker exec kesimarket-postgres-prod pg_dump -U postgres kesimarket_modern > backup.sql
    ```
 
 2. **Arrêt complet**
@@ -171,7 +171,7 @@ En cas de problème majeur :
 3. **Nettoyage**
    ```bash
    docker system prune -f
-   rm -rf ~/rexel-modern/backend/minio-data/*
+   rm -rf ~/kesimarket-modern/backend/minio-data/*
    ```
 
 4. **Redéploiement**

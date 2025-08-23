@@ -88,8 +88,8 @@ export default class CartsController {
       cart = await Cart.firstOrCreate({ userId: user.id }, { userId: user.id })
     } else if (sessionId) {
       cart = await Cart.firstOrCreate(
-        { sessionId, userId: undefined },
-        { sessionId, userId: undefined }
+        { sessionId },
+        { sessionId }
       )
     } else {
       return response.badRequest({

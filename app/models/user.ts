@@ -1,10 +1,12 @@
 import { DateTime } from 'luxon'
 import hash from '@adonisjs/core/services/hash'
 import { compose } from '@adonisjs/core/helpers'
-import { BaseModel, column } from '@adonisjs/lucid/orm'
+import { BaseModel, column, hasMany } from '@adonisjs/lucid/orm'
+import type { HasMany } from '@adonisjs/lucid/types/relations'
 import { withAuthFinder } from '@adonisjs/auth/mixins/lucid'
 import { DbAccessTokensProvider } from '@adonisjs/auth/access_tokens'
 import { UserType } from '../types/user.js'
+import Address from './address.js'
 
 const AuthFinder = withAuthFinder(() => hash.use('scrypt'), {
   uids: ['email'],
@@ -15,10 +17,10 @@ export default class User extends compose(BaseModel, AuthFinder) {
   @column({ isPrimary: true })
   declare id: number
 
-  @column()
+  @column({ columnName: 'first_name' })
   declare firstName: string | null
 
-  @column()
+  @column({ columnName: 'last_name' })
   declare lastName: string | null
 
   @column()
@@ -36,19 +38,19 @@ export default class User extends compose(BaseModel, AuthFinder) {
   @column({ serializeAs: null })
   declare password: string
 
-  @column()
+  @column({ columnName: 'is_verified' })
   declare isVerified: boolean
 
-  @column({ serializeAs: null })
+  @column({ serializeAs: null, columnName: 'verification_token' })
   declare verificationToken: string | null
 
-  @column({ serializeAs: null })
+  @column({ serializeAs: null, columnName: 'verification_otp' })
   declare verificationOtp: string | null
 
-  @column.dateTime({ serializeAs: null })
+  @column.dateTime({ serializeAs: null, columnName: 'verification_otp_expires_at' })
   declare verificationOtpExpiresAt: DateTime | null
 
-  @column.dateTime()
+  @column.dateTime({ columnName: 'email_verified_at' })
   declare emailVerifiedAt: DateTime | null
 
   @column.dateTime({ autoCreate: true })
@@ -59,11 +61,19 @@ export default class User extends compose(BaseModel, AuthFinder) {
 
   static accessTokens = DbAccessTokensProvider.forModel(User)
 
+  // Relations
+  @hasMany(() => Address)
+  declare addresses: HasMany<typeof Address>
+
   // Computed property for full name
   get fullName(): string {
     if (this.firstName && this.lastName) {
       return `${this.firstName} ${this.lastName}`.trim()
     }
     return this.firstName || this.lastName || ''
+  }
+
+  get name(): string {
+    return this.fullName
   }
 }

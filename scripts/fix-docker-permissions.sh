@@ -1,11 +1,11 @@
 #!/bin/bash
 
-# Script de dépannage Docker pour Rexel Modern Backend
+# Script de dépannage Docker pour KesiMarket Modern Backend
 # Usage: ./fix-docker-permissions.sh
 
 set -e
 
-echo "🔧 Rexel Modern - Docker Permissions Fix Script"
+echo "🔧 KesiMarket Modern - Docker Permissions Fix Script"
 echo "=============================================="
 
 # Couleurs pour les messages
@@ -135,13 +135,13 @@ fi
 
 # 7. Créer un réseau Docker pour le projet si nécessaire
 echo
-echo "🌐 Vérification du réseau Docker rexel-network..."
-if docker network ls 2>/dev/null | grep -q rexel-network || sudo docker network ls 2>/dev/null | grep -q rexel-network; then
-    print_success "Le réseau rexel-network existe déjà"
+echo "🌐 Vérification du réseau Docker kesimarket-network..."
+if docker network ls 2>/dev/null | grep -q kesimarket-network || sudo docker network ls 2>/dev/null | grep -q kesimarket-network; then
+    print_success "Le réseau kesimarket-network existe déjà"
 else
-    print_info "Création du réseau rexel-network..."
-    if docker network create rexel-network 2>/dev/null || sudo docker network create rexel-network 2>/dev/null; then
-        print_success "Réseau rexel-network créé"
+    print_info "Création du réseau kesimarket-network..."
+    if docker network create kesimarket-network 2>/dev/null || sudo docker network create kesimarket-network 2>/dev/null; then
+        print_success "Réseau kesimarket-network créé"
     else
         print_warning "Impossible de créer le réseau (normal si pas de permissions)"
     fi
@@ -158,7 +158,7 @@ if docker ps &> /dev/null; then
     print_info "Vous pouvez maintenant:"
     echo "  1. Relancer le workflow GitHub Actions"
     echo "  2. Ou déployer manuellement avec:"
-    echo "     cd ~/rexel-modern/backend"
+    echo "     cd ~/kesimarket-modern/backend"
     echo "     docker compose -f docker-compose.prod.yml up -d"
 else
     print_warning "Docker nécessite encore sudo ou une reconnexion"

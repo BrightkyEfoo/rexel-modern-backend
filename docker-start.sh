@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Rexel Modern Backend - Docker Management Script
+# KesiMarket Modern Backend - Docker Management Script
 # Usage: ./docker-start.sh [command]
 
 set -e
@@ -185,7 +185,7 @@ case "${1:-help}" in
         full_setup
         ;;
     "help"|*)
-        echo "Rexel Modern Backend - Docker Management"
+        echo "KesiMarket Modern Backend - Docker Management"
         echo ""
         echo "Usage: $0 [command]"
         echo ""

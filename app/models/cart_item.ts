@@ -8,10 +8,10 @@ export default class CartItem extends BaseModel {
   @column({ isPrimary: true })
   declare id: number
 
-  @column()
+  @column({ columnName: 'cart_id' })
   declare cartId: number
 
-  @column()
+  @column({ columnName: 'product_id' })
   declare productId: number
 
   @column()

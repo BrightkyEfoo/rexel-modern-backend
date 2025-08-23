@@ -5,7 +5,7 @@
 
 set -e
 
-DEPLOY_PATH="${1:-$HOME/rexel-modern/backend}"
+DEPLOY_PATH="${1:-$HOME/kesimarket-modern/backend}"
 
 echo "🔍 Vérification des fichiers de déploiement"
 echo "📁 Dossier: $DEPLOY_PATH"
