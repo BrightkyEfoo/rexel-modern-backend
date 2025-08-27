@@ -3,8 +3,11 @@ import { LucidModel, ModelAttributes } from '@adonisjs/lucid/types/model'
 export default abstract class BaseRepository<T extends LucidModel> {
   protected model: T
 
+  public query: LucidModel['query']
+
   constructor(model: T) {
     this.model = model
+    this.query = model.query
   }
 
   /**

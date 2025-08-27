@@ -18,6 +18,9 @@ export function registerSecuredCategoryRoutes() {
       router.post('/categories', '#controllers/categories_controller.store')
       router.put('/categories/:id', '#controllers/categories_controller.update')
       router.delete('/categories/:id', '#controllers/categories_controller.destroy')
+      
+      // Routes de validation unique
+      router.post('/categories/validate/name', '#controllers/categories_controller.checkNameUnique')
     })
     .prefix('/api/v1/secured')
     .middleware([middleware.auth()])

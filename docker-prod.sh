@@ -120,6 +120,10 @@ deploy_production() {
     log_info "Running database migrations..."
     docker-compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" exec -T app node ace migration:run
     
+    # Setup MinIO buckets
+    log_info "Setting up MinIO buckets..."
+    docker-compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" exec -T app node ace minio:setup || log_warning "MinIO setup failed, but continuing..."
+    
     # Run seeders only if requested
     read -p "Run database seeders? (y/N): " -n 1 -r
     echo
@@ -162,6 +166,36 @@ show_logs() {
     else
         docker-compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" logs -f
     fi
+}
+
+# Setup MinIO buckets and configuration
+setup_minio() {
+    check_env
+    
+    log_info "Setting up MinIO configuration..."
+    
+    # Wait for MinIO to be ready
+    log_info "Waiting for MinIO to be ready..."
+    timeout=30
+    count=0
+    while ! docker-compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" exec -T minio curl -f http://localhost:9000/minio/health/live >/dev/null 2>&1; do
+        if [ $count -ge $timeout ]; then
+            log_error "MinIO health check timeout"
+            return 1
+        fi
+        sleep 1
+        count=$((count + 1))
+    done
+    
+    # Check MinIO configuration
+    log_info "Checking MinIO configuration..."
+    docker-compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" exec -T app node ace minio:check
+    
+    # Setup buckets
+    log_info "Creating MinIO buckets..."
+    docker-compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" exec -T app node ace minio:setup
+    
+    log_success "MinIO configuration completed!"
 }
 
 # Create database backup
@@ -236,6 +270,10 @@ update_production() {
     # Run new migrations
     docker-compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" exec -T app node ace migration:run
     
+    # Setup MinIO buckets
+    log_info "Updating MinIO configuration..."
+    docker-compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" exec -T app node ace minio:setup || log_warning "MinIO setup failed, but continuing..."
+    
     log_success "Production updated successfully"
 }
 
@@ -298,6 +336,9 @@ case "${1:-help}" in
     "logs")
         show_logs "$@"
         ;;
+    "minio")
+        setup_minio
+        ;;
     "backup")
         backup_database
         ;;
@@ -332,6 +373,7 @@ case "${1:-help}" in
         echo "  restart   - Restart production services"
         echo "  status    - Show services status"
         echo "  logs      - Show logs [service]"
+        echo "  minio     - Setup MinIO buckets and configuration"
         echo "  update    - Update production deployment"
         echo "  scale     - Scale services (e.g., app=2)"
         echo ""

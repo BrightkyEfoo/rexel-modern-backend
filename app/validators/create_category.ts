@@ -10,6 +10,16 @@ export const createCategoryValidator = vine.compile(
     parentId: vine.number().positive().optional(),
     isActive: vine.boolean().optional(),
     sortOrder: vine.number().min(0).optional(),
+    // Gestion des images
+    images: vine
+      .array(
+        vine.object({
+          url: vine.string(),
+          alt: vine.string().optional(),
+          isMain: vine.boolean().optional(),
+        })
+      )
+      .optional(),
   })
 )
 
@@ -23,5 +33,15 @@ export const updateCategoryValidator = vine.compile(
     parentId: vine.number().positive().optional(),
     isActive: vine.boolean().optional(),
     sortOrder: vine.number().min(0).optional(),
+    // Gestion des images
+    images: vine
+      .array(
+        vine.object({
+          url: vine.string(),
+          alt: vine.string().optional(),
+          isMain: vine.boolean().optional(),
+        })
+      )
+      .optional(),
   })
 )

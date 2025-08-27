@@ -532,31 +532,27 @@ jobs:
             
             # Wait for MinIO to be ready
             echo "Waiting for MinIO to be ready..."
-            until ${USE_SUDO}docker compose -f docker-compose.prod.yml exec -T minio mc ready local; do
-              echo "MinIO not ready yet, waiting..."
-              sleep 2
+            MAX_MINIO_ATTEMPTS=30
+            MINIO_ATTEMPT=1
+            
+            while [ $MINIO_ATTEMPT -le $MAX_MINIO_ATTEMPTS ]; do
+              echo "🔍 MinIO check attempt $MINIO_ATTEMPT/$MAX_MINIO_ATTEMPTS..."
+              
+              if ${USE_SUDO}docker compose -f docker-compose.prod.yml exec -T minio curl -f http://localhost:9000/minio/health/live >/dev/null 2>&1; then
+                echo "✅ MinIO is ready!"
+                break
+              else
+                if [ $MINIO_ATTEMPT -eq $MAX_MINIO_ATTEMPTS ]; then
+                  echo "❌ MinIO failed to start after $MAX_MINIO_ATTEMPTS attempts"
+                  echo "📋 MinIO container logs:"
+                  ${USE_SUDO}docker compose -f docker-compose.prod.yml logs minio
+                  exit 1
+                fi
+                echo "⏳ MinIO not ready yet, waiting 3 seconds..."
+                sleep 3
+              fi
+              MINIO_ATTEMPT=$((MINIO_ATTEMPT + 1))
             done
-            
-            # Create MinIO bucket if not exists (with fallback)
-            BUCKET_NAME="${{ secrets.MINIO_BUCKET }}"
-            if [ -z "$BUCKET_NAME" ]; then
-              BUCKET_NAME="kesimarket-storage"
-              echo "⚠️  MINIO_BUCKET not set, using default: $BUCKET_NAME"
-            fi
-            
-            echo "Creating MinIO bucket '$BUCKET_NAME' if not exists..."
-            if ${USE_SUDO}docker compose -f docker-compose.prod.yml exec -T minio mc mb local/$BUCKET_NAME; then
-              echo "✅ Bucket '$BUCKET_NAME' created successfully"
-            else
-              echo "📝 Bucket '$BUCKET_NAME' might already exist"
-            fi
-            
-            # Set bucket policy to public read for public files
-            if ${USE_SUDO}docker compose -f docker-compose.prod.yml exec -T minio mc anonymous set public local/$BUCKET_NAME/public; then
-              echo "✅ Public policy set for $BUCKET_NAME/public"
-            else
-              echo "📝 Could not set public policy (bucket might not support it)"
-            fi
             
             # Verify database is accessible
             echo "Verifying database is accessible..."
@@ -633,11 +629,57 @@ jobs:
               exit 1
             fi
 
+  setup-minio:
+    name: Setup MinIO Configuration
+    runs-on: ubuntu-latest
+    environment: production
+    needs: [run-migrations]
+    steps:
+      - name: Setup MinIO buckets and configuration
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_PRIVATE_KEY }}
+          port: 22
+          script: |
+            cd ${{ env.VPS_DEPLOY_PATH }}
+            
+            # Detect if sudo is needed for Docker commands
+            USE_SUDO=""
+            if ! docker ps &> /dev/null; then
+              if sudo docker ps &> /dev/null; then
+                echo "⚠️  Using sudo for Docker commands"
+                USE_SUDO="sudo "
+              else
+                echo "❌ Docker not accessible even with sudo"
+                exit 1
+              fi
+            fi
+            
+            echo "🚀 Setting up MinIO configuration..."
+            
+            # Check MinIO configuration first
+            echo "📋 Checking MinIO configuration..."
+            ${USE_SUDO}docker compose -f docker-compose.prod.yml exec -T app node ace minio:check || echo "⚠️  MinIO check failed, but continuing..."
+            
+            # Setup MinIO buckets with application
+            echo "📦 Setting up MinIO buckets..."
+            if ${USE_SUDO}docker compose -f docker-compose.prod.yml exec -T app node ace minio:setup; then
+              echo "✅ MinIO configuration completed successfully!"
+            else
+              echo "❌ MinIO setup failed!"
+              ${USE_SUDO}docker compose -f docker-compose.prod.yml logs app
+              echo "📋 MinIO container logs:"
+              ${USE_SUDO}docker compose -f docker-compose.prod.yml logs minio
+              exit 1
+            fi
+
   run-seeds:
     name: Run Database Seeds
     runs-on: ubuntu-latest
     environment: production
-    needs: [run-migrations]
+    needs: [setup-minio]
     if: ${{ github.event.inputs.run_seeds == 'true' && (github.event.inputs.run_migrations == 'true' || github.event_name == 'push') }}
     steps:
       - name: Run seeds
@@ -739,7 +781,7 @@ jobs:
             
             # Test MinIO connection (optional check)
             echo -e "\n📦 MinIO Connection Test:"
-            if ${USE_SUDO}docker compose -f docker-compose.prod.yml exec -T minio mc ls local/${{ secrets.MINIO_BUCKET }} > /dev/null 2>&1; then
+            if ${USE_SUDO}docker compose -f docker-compose.prod.yml exec -T app node ace minio:check > /dev/null 2>&1; then
               echo "✅ MinIO connection successful"
             else
               echo "⚠️  MinIO connection test failed (services may still be starting)"

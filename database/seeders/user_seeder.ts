@@ -1,6 +1,5 @@
-import { BaseSeeder } from '@adonisjs/lucid/seeders'
 import User from '#models/user'
-import hash from '@adonisjs/core/services/hash'
+import { BaseSeeder } from '@adonisjs/lucid/seeders'
 import { UserType } from '../../app/types/user.js'
 
 export default class UserSeeder extends BaseSeeder {
@@ -15,6 +14,7 @@ export default class UserSeeder extends BaseSeeder {
         email: 'admin@kesimarket.com',
         password: 'admin123',
         type: UserType.ADMIN,
+        isVerified: true,
       },
       {
         firstName: 'Admin',
@@ -22,6 +22,7 @@ export default class UserSeeder extends BaseSeeder {
         email: 'admin@rexel.com',
         password: 'admin123',
         type: UserType.ADMIN,
+        isVerified: true,
       },
       {
         firstName: 'Jean',
@@ -29,6 +30,7 @@ export default class UserSeeder extends BaseSeeder {
         email: 'jean.dupont@example.com',
         password: 'customer123',
         type: UserType.CUSTOMER,
+        isVerified: true,
       },
       {
         firstName: 'Marie',
@@ -36,6 +38,7 @@ export default class UserSeeder extends BaseSeeder {
         email: 'marie.martin@example.com',
         password: 'customer123',
         type: UserType.CUSTOMER,
+        isVerified: true,
       },
       {
         firstName: 'Pierre',
@@ -50,28 +53,27 @@ export default class UserSeeder extends BaseSeeder {
         email: 'sophie.bernard@example.com',
         password: 'customer123',
         type: UserType.CUSTOMER,
+        isVerified: true,
       },
     ]
 
     for (const userData of usersData) {
       // Vérifier si l'utilisateur existe déjà
       const existingUser = await User.findBy('email', userData.email)
-      
+
       if (existingUser) {
         console.log(`⚠️ Utilisateur déjà existant: ${userData.email}`)
         continue
       }
-
-      // Hasher le mot de passe
-      const hashedPassword = await hash.make(userData.password)
 
       // Créer l'utilisateur
       const user = await User.create({
         firstName: userData.firstName,
         lastName: userData.lastName,
         email: userData.email,
-        password: hashedPassword,
+        password: userData.password,
         type: userData.type,
+        isVerified: userData.isVerified,
       })
 
       console.log(`✅ Utilisateur créé: ${user.fullName} (${user.email}) - Type: ${user.type}`)
@@ -79,4 +81,4 @@ export default class UserSeeder extends BaseSeeder {
 
     console.log('🎉 Seeder des utilisateurs terminé!')
   }
-} 
+}

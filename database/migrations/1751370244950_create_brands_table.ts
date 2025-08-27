@@ -12,6 +12,7 @@ export default class extends BaseSchema {
       table.string('logo_url').nullable()
       table.string('website_url').nullable()
       table.boolean('is_active').defaultTo(true)
+      table.boolean('is_featured').defaultTo(false)
 
       table.timestamp('created_at').notNullable()
       table.timestamp('updated_at').nullable()

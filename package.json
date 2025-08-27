@@ -16,7 +16,9 @@
     "migration:rollback": "node ace migration:rollback",
     "migration:reset": "node ace migration:reset",
     "migration:refresh": "node ace migration:refresh",
-    "db:seed": "node ace db:seed"
+    "db:seed": "node ace db:seed",
+    "minio:check": "node ace minio:check",
+    "minio:setup": "node ace minio:setup"
   },
   "imports": {
     "#controllers/*": "./app/controllers/*.js",

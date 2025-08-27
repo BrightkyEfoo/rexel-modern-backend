@@ -179,6 +179,7 @@ export default class ProductRepository extends BaseRepository<typeof Product> {
     }
 
     if (filters.isActive !== undefined) {
+      console.log('isActive', filters.isActive, typeof filters.isActive)
       query.where('is_active', filters.isActive)
     }
 

@@ -3,6 +3,7 @@ import ProductRepository from '../repositories/product_repository.js'
 import SlugService from '../services/slug_service.js'
 import { createProductValidator, updateProductValidator } from '../validators/create_product.js'
 import Category from '../models/category.js'
+import Product from '#models/product'
 
 export default class ProductsController {
   private productRepository = new ProductRepository()
@@ -20,6 +21,8 @@ export default class ProductsController {
       const categoryId = request.input('category_id')
       const brandId = request.input('brand_id')
       const isFeatured = request.input('is_featured')
+      const isActive = request.input('is_active')
+      const inStock = request.input('in_stock')
 
       // Récupérer les filtres de métadonnées
       const metadataFilters: Record<string, any> = {}
@@ -41,8 +44,10 @@ export default class ProductsController {
         search,
         categoryId,
         brandId,
-        isFeatured: isFeatured === 'true' ? true : undefined,
+        isActive: isActive !== undefined ? (isActive === 'true' ? true : false) : undefined,
+        isFeatured: isFeatured !== undefined ? (isFeatured === 'true' ? true : false) : undefined,
         metadata: Object.keys(metadataFilters).length > 0 ? metadataFilters : undefined,
+        inStock: inStock !== undefined ? (inStock === 'true' ? true : false) : undefined,
       }
 
       const paginatedProducts = await this.productRepository.findWithPaginationAndFilters(
@@ -112,16 +117,49 @@ export default class ProductsController {
     try {
       const payload = await request.validateUsing(createProductValidator)
 
+      // Extraction des données pour les relations
+      const { categoryIds, images, ...productData } = payload
+
       // Génération du slug automatique
       const slug = await SlugService.generateUniqueSlug(payload.name, 'products')
 
+      // Création du produit
       const product = await this.productRepository.create({
-        ...payload,
+        ...productData,
         slug,
       })
 
+      // Attachement des catégories si spécifiées
+      if (categoryIds && categoryIds.length > 0) {
+        await product.related('categories').attach(categoryIds)
+      }
+
+      // Création des fichiers images si spécifiées
+      if (images && images.length > 0) {
+        for (const [index, image] of images.entries()) {
+          await product.related('files').create({
+            filename: image.alt || `Image ${index + 1}`,
+            originalName: image.alt || `Image ${index + 1}`,
+            path: image.url,
+            url: image.url,
+            size: 0,
+            mimeType: 'image/*',
+            bucket: 'rexel-public',
+            fileableType: 'Product',
+            fileableId: product.id,
+            isMain: image.isMain || false,
+          })
+        }
+      }
+
+      // Recharger le produit avec ses relations
+      await product.load('categories')
+      await product.load('brand')
+      await product.load('files')
+
       return response.created({ data: product })
     } catch (error) {
+      console.log('Error creating product', error)
       return response.badRequest({ message: 'Error creating product', error: error.message })
     }
   }
@@ -131,6 +169,7 @@ export default class ProductsController {
    */
   async update({ params, request, response }: HttpContext) {
     try {
+      console.log('Update product request body:', JSON.stringify(request.body(), null, 2))
       const payload = await request.validateUsing(updateProductValidator)
 
       const product = await this.productRepository.findById(params.id)
@@ -138,8 +177,29 @@ export default class ProductsController {
         return response.notFound({ message: 'Product not found' })
       }
 
+      // Validation métier : prix de vente vs prix normal
+      const newPrice = payload.price ?? product.price
+      const newSalePrice = payload.salePrice ?? product.salePrice
+
+      if (newSalePrice && newSalePrice >= newPrice) {
+        return response.badRequest({
+          message: 'Validation error',
+          error: 'Le prix de vente doit être inférieur au prix normal',
+          details: [
+            {
+              field: 'salePrice',
+              message: 'Le prix de vente doit être inférieur au prix normal',
+              rule: 'business_logic',
+            },
+          ],
+        })
+      }
+
+      // Extraction des données pour les relations
+      const { categoryIds, images, ...productData } = payload
+
       // Mise à jour du slug si le nom a changé
-      let updatedData: typeof payload & { slug?: string } = { ...payload }
+      let updatedData: typeof productData & { slug?: string } = { ...productData }
       if (payload.name) {
         const newSlug = await SlugService.updateSlugIfNeeded(
           payload.name,
@@ -150,10 +210,57 @@ export default class ProductsController {
         updatedData.slug = newSlug
       }
 
+      // Mise à jour du produit
       const updatedProduct = await this.productRepository.update(params.id, updatedData)
+      if (!updatedProduct) {
+        return response.notFound({ message: 'Product not found' })
+      }
+
+      // Mise à jour des catégories si spécifiées
+      if (categoryIds !== undefined) {
+        await updatedProduct.related('categories').sync(categoryIds)
+      }
+
+      // Mise à jour des images si spécifiées
+      if (images !== undefined) {
+        // Supprimer les anciennes images
+        await updatedProduct.related('files').query().delete()
+
+        // Créer les nouvelles images
+        if (images.length > 0) {
+          for (const [index, image] of images.entries()) {
+            await updatedProduct.related('files').create({
+              filename: image.alt || `Image ${index + 1}`,
+              originalName: image.alt || `Image ${index + 1}`,
+              path: image.url,
+              url: image.url,
+              size: 0,
+              mimeType: 'image/*',
+              bucket: 'rexel-public',
+              fileableType: 'Product',
+              fileableId: updatedProduct.id,
+              isMain: image.isMain || false,
+            })
+          }
+        }
+      }
+
+      // Recharger le produit avec ses relations
+      await updatedProduct.load('categories')
+      await updatedProduct.load('brand')
+      await updatedProduct.load('files')
+
       return response.ok({ data: updatedProduct })
     } catch (error) {
-      return response.badRequest({ message: 'Error updating product', error: error.message })
+      console.error('Product update error:', error)
+      if (error.messages) {
+        console.error('Validation errors:', JSON.stringify(error.messages, null, 2))
+      }
+      return response.badRequest({
+        message: 'Error updating product',
+        error: error.message,
+        details: error.messages || null,
+      })
     }
   }
 
@@ -171,6 +278,73 @@ export default class ProductsController {
       return response.ok({ message: 'Product deleted successfully' })
     } catch (error) {
       return response.internalServerError({ message: 'Error deleting product' })
+    }
+  }
+
+  /**
+   * Vérifie si un SKU est unique
+   */
+  async checkSkuUnique({ request, response }: HttpContext) {
+    try {
+      const { sku, productId } = request.only(['sku', 'productId'])
+
+      if (!sku || sku.trim() === '') {
+        return response.ok({ unique: true })
+      }
+
+      let query = Product.query().where('sku', sku.trim())
+
+      // Exclure le produit actuel si on est en mode édition
+      if (productId) {
+        query = query.where('id', '!=', productId)
+      }
+
+      const existingProduct = await query.first()
+      const isUnique = !existingProduct
+
+      return response.ok({
+        unique: isUnique,
+        message: isUnique ? 'SKU disponible' : 'Ce SKU est déjà utilisé',
+      })
+    } catch (error) {
+      return response.badRequest({
+        message: 'Error checking SKU uniqueness',
+        error: error.message,
+      })
+    }
+  }
+
+  /**
+   * Vérifie si un nom de produit est unique
+   */
+  async checkNameUnique({ request, response }: HttpContext) {
+    try {
+      const { name, productId } = request.only(['name', 'productId'])
+
+      if (!name || name.trim() === '') {
+        return response.ok({ unique: true })
+      }
+
+      let query = Product.query().where('name', name.trim())
+
+      // Exclure le produit actuel si on est en mode édition
+      if (productId) {
+        query = query.where('id', '!=', productId)
+      }
+
+      const existingProduct = await query.first()
+      const isUnique = !existingProduct
+
+      return response.ok({
+        unique: isUnique,
+        message: isUnique ? 'Nom disponible' : 'Ce nom est déjà utilisé',
+      })
+    } catch (error) {
+      console.log('error', error)
+      return response.badRequest({
+        message: 'Error checking name uniqueness',
+        error: error.message,
+      })
     }
   }
 

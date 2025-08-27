@@ -17,6 +17,9 @@ export function registerSecuredBrandRoutes() {
       router.post('/brands', '#controllers/brands_controller.store')
       router.put('/brands/:id', '#controllers/brands_controller.update')
       router.delete('/brands/:id', '#controllers/brands_controller.destroy')
+      
+      // Routes de validation unique
+      router.post('/brands/validate/name', '#controllers/brands_controller.checkNameUnique')
     })
     .prefix('/api/v1/secured')
     .middleware([middleware.auth()])

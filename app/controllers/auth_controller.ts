@@ -94,10 +94,23 @@ export default class AuthController {
   async login({ request, response }: HttpContext) {
     const payload = await request.validateUsing(loginValidator)
 
+    console.log('🔍 Login payload:', payload)
+
     // Vérifier les identifiants
-    const user = await User.verifyCredentials(payload.email, payload.password)
+    let user: User | null = null
+    try {
+      user = await User.verifyCredentials(payload.email, payload.password)
+    } catch (error) {
+      console.log('🔍 Login error:', error)
+      return response.unauthorized({
+        message: 'Identifiants invalides',
+      })
+    }
+
+    console.log('🔍 User:', user)
 
     if (!user) {
+      console.log('🔍 User not found:', payload.email)
       return response.unauthorized({
         message: 'Identifiants invalides',
       })
@@ -105,6 +118,7 @@ export default class AuthController {
 
     // Vérifier si le compte est vérifié
     if (!user.isVerified) {
+      console.log('🔍 User not verified:', payload.email)
       // Générer un nouvel OTP
       const otp = this.generateOtp()
       const expiresAt = DateTime.now().plus({ minutes: 10 })
@@ -116,6 +130,7 @@ export default class AuthController {
       // Envoyer l'OTP
       await this.sendOtpEmail(user, otp)
 
+      console.log('🔍 User not verified:', payload.email)
       return response.unauthorized({
         message:
           "Votre compte n'est pas vérifié. Un nouveau code de vérification a été envoyé à votre email.",
@@ -129,6 +144,8 @@ export default class AuthController {
 
     // Créer le token d'accès
     const token = await User.accessTokens.create(user)
+
+    console.log('🔍 User verified:', payload.email)
 
     return response.ok({
       message: 'Connexion réussie',

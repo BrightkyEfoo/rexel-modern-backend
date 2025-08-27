@@ -22,6 +22,7 @@ export default class BrandRepository extends BaseRepository<typeof Brand> {
       .preload('products', (query) => {
         query.where('is_active', true).preload('files')
       })
+      .preload('files')
       .first()
   }
 
@@ -32,6 +33,7 @@ export default class BrandRepository extends BaseRepository<typeof Brand> {
     return Brand.query()
       .where('name', 'ilike', `%${query}%`)
       .where('is_active', true)
+      .preload('files')
       .orderBy('name', 'asc')
   }
 
@@ -39,14 +41,14 @@ export default class BrandRepository extends BaseRepository<typeof Brand> {
    * Récupère toutes les marques avec relations
    */
   async findAllWithRelations(): Promise<Brand[]> {
-    return Brand.query().preload('products')
+    return Brand.query().preload('products').preload('files')
   }
 
   /**
    * Récupère une marque par slug avec relations
    */
   async findBySlugWithRelations(slug: string): Promise<Brand | null> {
-    return Brand.query().where('slug', slug).preload('products').first()
+    return Brand.query().where('slug', slug).preload('products').preload('files').first()
   }
 
   /**
@@ -58,7 +60,7 @@ export default class BrandRepository extends BaseRepository<typeof Brand> {
     sortBy: string = 'name',
     sortOrder: 'asc' | 'desc' = 'asc'
   ) {
-    const query = Brand.query().where('is_active', true).preload('products')
+    const query = Brand.query().where('is_active', true).preload('products').preload('files')
 
     // Application du tri
     const allowedSortFields = ['name', 'created_at', 'updated_at']
@@ -83,9 +85,10 @@ export default class BrandRepository extends BaseRepository<typeof Brand> {
     filters: {
       search?: string
       isActive?: boolean
+      isFeatured?: boolean
     } = {}
   ) {
-    const query = Brand.query().preload('products')
+    const query = Brand.query().preload('products').preload('files')
 
     // Application des filtres
     if (filters.search) {
@@ -98,6 +101,10 @@ export default class BrandRepository extends BaseRepository<typeof Brand> {
 
     if (filters.isActive !== undefined) {
       query.where('is_active', filters.isActive)
+    }
+
+    if (filters.isFeatured !== undefined) {
+      query.where('is_featured', filters.isFeatured)
     }
 
     // Application du tri

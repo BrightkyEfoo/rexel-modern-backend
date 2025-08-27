@@ -99,6 +99,12 @@ setup_database() {
     log_success "Database setup completed"
 }
 
+setup_minio() {
+    log_info "Setting up MinIO buckets..."
+    docker-compose exec app npm run minio:setup || log_warning "MinIO setup failed, but continuing..."
+    log_success "MinIO setup completed"
+}
+
 clean_volumes() {
     log_warning "This will remove all Docker volumes (database data will be lost)"
     read -p "Are you sure? (y/N): " -n 1 -r
@@ -135,6 +141,7 @@ full_setup() {
     sleep 10
     
     setup_database
+    setup_minio
     log_success "Full setup completed!"
     log_info "Application should be available at http://localhost:\${PORT:-3333}"
     log_info "MinIO Console available at http://localhost:\${MINIO_CONSOLE_PORT:-9001} (admin credentials in .env)"
@@ -172,6 +179,9 @@ case "${1:-help}" in
     "setup-db")
         setup_database
         ;;
+    "setup-minio")
+        setup_minio
+        ;;
     "clean")
         clean_volumes
         ;;
@@ -200,6 +210,7 @@ case "${1:-help}" in
         echo "  migrate   - Run database migrations"
         echo "  seed      - Run database seeders"
         echo "  setup-db  - Run migrations and seeders"
+        echo "  setup-minio - Setup MinIO buckets"
         echo "  clean     - Clean Docker volumes (removes data)"
         echo "  install   - Install npm dependencies"
         echo "  shell     - Open shell in app container"

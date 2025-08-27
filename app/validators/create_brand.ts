@@ -7,9 +7,19 @@ export const createBrandValidator = vine.compile(
   vine.object({
     name: vine.string().minLength(1).maxLength(255),
     description: vine.string().optional(),
-    logoUrl: vine.string().url().optional(),
-    websiteUrl: vine.string().url().optional(),
+    logoUrl: vine.string().optional(),
+    websiteUrl: vine.string().optional(),
     isActive: vine.boolean().optional(),
+    // Gestion des images
+    images: vine
+      .array(
+        vine.object({
+          url: vine.string(),
+          alt: vine.string().optional(),
+          isMain: vine.boolean().optional(),
+        })
+      )
+      .optional(),
   })
 )
 
@@ -20,8 +30,18 @@ export const updateBrandValidator = vine.compile(
   vine.object({
     name: vine.string().minLength(1).maxLength(255).optional(),
     description: vine.string().optional(),
-    logoUrl: vine.string().url().optional(),
-    websiteUrl: vine.string().url().optional(),
+    logoUrl: vine.string().optional(),
+    websiteUrl: vine.string().optional(),
     isActive: vine.boolean().optional(),
+    // Gestion des images
+    images: vine
+      .array(
+        vine.object({
+          url: vine.string(),
+          alt: vine.string().optional(),
+          isMain: vine.boolean().optional(),
+        })
+      )
+      .optional(),
   })
 )

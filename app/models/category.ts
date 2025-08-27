@@ -1,5 +1,5 @@
 import { DateTime } from 'luxon'
-import { BaseModel, column, hasMany, belongsTo, manyToMany } from '@adonisjs/lucid/orm'
+import { BaseModel, column, hasMany, belongsTo, manyToMany, computed } from '@adonisjs/lucid/orm'
 import type { HasMany, BelongsTo, ManyToMany } from '@adonisjs/lucid/types/relations'
 import Product from './product.js'
 import File from './file.js'
@@ -56,6 +56,23 @@ export default class Category extends BaseModel {
     onQuery: (query) => query.where('fileable_type', 'Category'),
   })
   declare files: HasMany<typeof File>
+
+  // Computed property pour l'image principale
+  @computed()
+  public get imageUrl() {
+    if (!this.files || this.files.length === 0) {
+      return null
+    }
+
+    // Chercher l'image marquée comme principale
+    const mainImage = this.files.find(file => file.isMain === true)
+    if (mainImage) {
+      return mainImage.url
+    }
+
+    // Si aucune image principale, prendre la première
+    return this.files[0]?.url || null
+  }
 
   /**
    * Récupère l'arbre généalogique des slugs (breadcrumb)

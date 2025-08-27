@@ -16,8 +16,20 @@ export const createProductValidator = vine.compile(
     inStock: vine.boolean().optional(),
     isFeatured: vine.boolean().optional(),
     isActive: vine.boolean().optional(),
-    categoryId: vine.number().positive().optional(),
     brandId: vine.number().positive().optional(),
+    fabricationCountryCode: vine.string().optional(),
+    // Relations many-to-many avec les catégories
+    categoryIds: vine.array(vine.number().positive()).optional(),
+    // Gestion des images
+    images: vine
+      .array(
+        vine.object({
+          url: vine.string(),
+          alt: vine.string().optional(),
+          isMain: vine.boolean().optional(),
+        })
+      )
+      .optional(),
   })
 )
 
@@ -37,7 +49,19 @@ export const updateProductValidator = vine.compile(
     inStock: vine.boolean().optional(),
     isFeatured: vine.boolean().optional(),
     isActive: vine.boolean().optional(),
-    categoryId: vine.number().positive().optional(),
     brandId: vine.number().positive().optional(),
+    // Relations many-to-many avec les catégories
+    categoryIds: vine.array(vine.number().positive()).optional(),
+    fabricationCountryCode: vine.string().optional(),
+    // Gestion des images
+    images: vine
+      .array(
+        vine.object({
+          url: vine.string(),
+          alt: vine.string().optional(),
+          isMain: vine.boolean().optional(),
+        })
+      )
+      .optional(),
   })
 )

@@ -1,5 +1,5 @@
 import { DateTime } from 'luxon'
-import { BaseModel, column, belongsTo, hasMany, manyToMany } from '@adonisjs/lucid/orm'
+import { BaseModel, column, belongsTo, hasMany, manyToMany, computed } from '@adonisjs/lucid/orm'
 import type { BelongsTo, HasMany, ManyToMany } from '@adonisjs/lucid/types/relations'
 import Category from './category.js'
 import Brand from './brand.js'
@@ -46,6 +46,9 @@ export default class Product extends BaseModel {
   @column({ columnName: 'is_active' })
   declare isActive: boolean
 
+  @column({ columnName: 'fabrication_country_code' })
+  declare fabricationCountryCode: string | null
+
   @column({ columnName: 'brand_id' })
   declare brandId: number | null
 
@@ -78,4 +81,21 @@ export default class Product extends BaseModel {
 
   @hasMany(() => ProductMetadata)
   declare metadata: HasMany<typeof ProductMetadata>
+
+  // Computed property pour l'image principale
+  @computed()
+  public get imageUrl() {
+    if (!this.files || this.files.length === 0) {
+      return null
+    }
+
+    // Chercher l'image marquée comme principale
+    const mainImage = this.files.find(file => file.isMain === true)
+    if (mainImage) {
+      return mainImage.url
+    }
+
+    // Si aucune image principale, prendre la première
+    return this.files[0]?.url || null
+  }
 }

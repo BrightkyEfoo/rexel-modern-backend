@@ -32,6 +32,9 @@ export default class File extends BaseModel {
   @column({ columnName: 'fileable_type' })
   declare fileableType: string | null
 
+  @column({ columnName: 'is_main' })
+  declare isMain: boolean
+
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime
 

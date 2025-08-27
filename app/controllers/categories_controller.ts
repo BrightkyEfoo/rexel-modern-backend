@@ -2,6 +2,7 @@ import type { HttpContext } from '@adonisjs/core/http'
 import CategoryRepository from '../repositories/category_repository.js'
 import SlugService from '../services/slug_service.js'
 import { createCategoryValidator, updateCategoryValidator } from '../validators/create_category.js'
+import Category from '#models/category'
 
 export default class CategoriesController {
   private categoryRepository = new CategoryRepository()
@@ -107,13 +108,37 @@ export default class CategoriesController {
     try {
       const payload = await request.validateUsing(createCategoryValidator)
 
+      // Extraction des données pour les relations
+      const { images, ...categoryData } = payload
+
       // Génération du slug automatique
       const slug = await SlugService.generateUniqueSlug(payload.name, 'categories')
 
       const category = await this.categoryRepository.create({
-        ...payload,
+        ...categoryData,
         slug,
       })
+
+      // Création des fichiers images si spécifiées
+      if (images && images.length > 0) {
+        for (const [index, image] of images.entries()) {
+          await category.related('files').create({
+            filename: image.alt || `Image ${index + 1}`,
+            originalName: image.alt || `Image ${index + 1}`,
+            path: image.url,
+            url: image.url,
+            size: 0,
+            mimeType: 'image/*',
+            bucket: 'rexel-public',
+            fileableType: 'Category',
+            fileableId: category.id,
+            isMain: image.isMain || false,
+          })
+        }
+      }
+
+      // Recharger la catégorie avec ses relations
+      await category.load('files')
 
       return response.created({
         data: category,
@@ -122,6 +147,7 @@ export default class CategoriesController {
         timestamp: new Date().toISOString(),
       })
     } catch (error) {
+      console.log('error creating category', error)
       return response.badRequest({
         message: 'Error creating category',
         error: error.message,
@@ -147,8 +173,11 @@ export default class CategoriesController {
         })
       }
 
+      // Extraction des données pour les relations
+      const { images, ...categoryData } = payload
+
       // Mise à jour du slug si le nom a changé
-      let updatedData: typeof payload & { slug?: string } = { ...payload }
+      let updatedData: typeof categoryData & { slug?: string } = { ...categoryData }
       if (payload.name) {
         const newSlug = await SlugService.updateSlugIfNeeded(
           payload.name,
@@ -159,7 +188,39 @@ export default class CategoriesController {
         updatedData.slug = newSlug
       }
 
+      // Mise à jour de la catégorie
       const updatedCategory = await this.categoryRepository.update(params.id, updatedData)
+      if (!updatedCategory) {
+        return response.notFound({ message: 'Category not found' })
+      }
+
+      // Mise à jour des images si spécifiées
+      if (images !== undefined) {
+        // Supprimer les anciennes images
+        await updatedCategory.related('files').query().delete()
+
+        // Créer les nouvelles images
+        if (images.length > 0) {
+          for (const [index, image] of images.entries()) {
+            await updatedCategory.related('files').create({
+              filename: image.alt || `Image ${index + 1}`,
+              originalName: image.alt || `Image ${index + 1}`,
+              path: image.url,
+              url: image.url,
+              size: 0,
+              mimeType: 'image/*',
+              bucket: 'rexel-public',
+              fileableType: 'Category',
+              fileableId: updatedCategory.id,
+              isMain: image.isMain || false,
+            })
+          }
+        }
+      }
+
+      // Recharger la catégorie avec ses relations
+      await updatedCategory.load('files')
+
       return response.ok({
         data: updatedCategory,
         message: 'Category updated successfully',
@@ -201,6 +262,40 @@ export default class CategoriesController {
         message: 'Error deleting category',
         status: 500,
         timestamp: new Date().toISOString(),
+      })
+    }
+  }
+
+  /**
+   * Vérifie si un nom de catégorie est unique
+   */
+  async checkNameUnique({ request, response }: HttpContext) {
+    try {
+      const { name, categoryId } = request.only(['name', 'categoryId'])
+
+      if (!name || name.trim() === '') {
+        return response.ok({ unique: true })
+      }
+
+      let query = Category.query().where('name', name.trim())
+
+      // Exclure la catégorie actuelle si on est en mode édition
+      if (categoryId) {
+        query = query.where('id', '!=', categoryId)
+      }
+
+      const existingCategory = await query.first()
+      const isUnique = !existingCategory
+
+      return response.ok({
+        unique: isUnique,
+        message: isUnique ? 'Nom disponible' : 'Ce nom est déjà utilisé',
+      })
+    } catch (error) {
+      console.log('error', error)
+      return response.badRequest({
+        message: 'Error checking name uniqueness',
+        error: error.message,
       })
     }
   }

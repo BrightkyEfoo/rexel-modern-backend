@@ -76,6 +76,7 @@ export default class CategoryRepository extends BaseRepository<typeof Category> 
       .preload('children')
       .preload('products')
       .preload('parent')
+      .preload('files')
       .first()
   }
 
@@ -109,6 +110,7 @@ export default class CategoryRepository extends BaseRepository<typeof Category> 
       })
       .preload('products')
       .preload('parent')
+      .preload('files')
 
     // Application des filtres
     if (filters.search) {

@@ -18,6 +18,7 @@ export default class extends BaseSchema {
       table.boolean('in_stock').defaultTo(true)
       table.boolean('is_featured').defaultTo(false)
       table.boolean('is_active').defaultTo(true)
+      table.string('fabrication_country_code').nullable()
 
       table.json('specifications').defaultTo({})
 

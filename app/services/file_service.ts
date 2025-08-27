@@ -130,4 +130,32 @@ export default class FileService {
       .where('fileable_id', fileableId)
       .orderBy('created_at', 'asc')
   }
+
+  /**
+   * Upload un fichier MulterFile vers Minio (pour l'API d'upload)
+   */
+  static async uploadToMinio(file: MultipartFile, filename: string): Promise<string> {
+    const bucket = minioConfig.buckets.public || 'rexel-public'
+
+    // Lire le contenu du fichier depuis le tmpPath
+    const fs = await import('node:fs')
+    const fileBuffer = fs.readFileSync(file.tmpPath!)
+
+    // Upload vers MinIO avec le buffer
+    await this.minioClient.putObject(bucket, filename, fileBuffer, file.size, {
+      'Content-Type': file.type || 'application/octet-stream',
+      'Content-Length': file.size,
+    })
+
+    // Construction de l'URL publique
+    return this.getPublicUrl(bucket, filename)
+  }
+
+  /**
+   * Supprime un fichier de Minio par nom de fichier
+   */
+  static async deleteFromMinio(filename: string): Promise<void> {
+    const bucket = minioConfig.buckets.public || 'rexel-public'
+    await this.minioClient.removeObject(bucket, filename)
+  }
 }
