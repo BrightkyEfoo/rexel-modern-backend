@@ -61,6 +61,7 @@ echo -e "${BLUE}📦 MinIO Object Storage:${NC}"
 check_var "MINIO_ACCESS_KEY" || MISSING_VARS=$((MISSING_VARS + 1))
 check_var "MINIO_SECRET_KEY" || MISSING_VARS=$((MISSING_VARS + 1))
 check_var "MINIO_BUCKET" || MISSING_VARS=$((MISSING_VARS + 1))
+check_var "MINIO_PUBLIC_ENDPOINT" || MISSING_VARS=$((MISSING_VARS + 1))
 
 echo ""
 

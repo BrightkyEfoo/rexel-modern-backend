@@ -233,6 +233,7 @@ jobs:
           MINIO_SECRET_KEY=${{ secrets.MINIO_SECRET_KEY }}
           MINIO_USE_SSL=false
           MINIO_BUCKET=${{ secrets.MINIO_BUCKET }}
+          MINIO_PUBLIC_ENDPOINT=${{ secrets.MINIO_PUBLIC_ENDPOINT }}
           
           # Redis Configuration (Internal Service)
           REDIS_HOST=redis
@@ -390,8 +391,10 @@ jobs:
             MINIO_SECRET_KEY=${{ secrets.MINIO_SECRET_KEY }}
             MINIO_USE_SSL=false
             MINIO_BUCKET=${{ secrets.MINIO_BUCKET }}
+            MINIO_PUBLIC_ENDPOINT=${{ secrets.MINIO_PUBLIC_ENDPOINT }}
             MINIO_ROOT_USER=${{ secrets.MINIO_ROOT_USER }}
             MINIO_ROOT_PASSWORD=${{ secrets.MINIO_ROOT_PASSWORD }}
+            MINIO_PUBLIC_ENDPOINT=${{ secrets.MINIO_PUBLIC_ENDPOINT }}
             
             # Redis Configuration (optional)
             REDIS_HOST=redis
@@ -426,6 +429,7 @@ jobs:
             MINIO_ACCESS_KEY=${{ secrets.MINIO_ACCESS_KEY }}
             MINIO_SECRET_KEY=${{ secrets.MINIO_SECRET_KEY }}
             MINIO_BUCKET=${{ secrets.MINIO_BUCKET }}
+            MINIO_PUBLIC_ENDPOINT=${{ secrets.MINIO_PUBLIC_ENDPOINT }}
             REDIS_PASSWORD=${{ secrets.REDIS_PASSWORD }}
             APP_KEY=${{ secrets.APP_KEY }}
             JWT_SECRET=${{ secrets.JWT_SECRET }}

@@ -36,6 +36,7 @@ export default await Env.create(new URL('../', import.meta.url), {
   MINIO_SECRET_KEY: Env.schema.string(),
   MINIO_USE_SSL: Env.schema.boolean.optional(),
   MINIO_REGION: Env.schema.string.optional(),
+  MINIO_PUBLIC_ENDPOINT: Env.schema.string.optional(),
 
   /*
   |----------------------------------------------------------

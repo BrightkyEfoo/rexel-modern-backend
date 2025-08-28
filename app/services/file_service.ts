@@ -87,8 +87,7 @@ export default class FileService {
    */
   static async getPublicUrl(bucket: string, filename: string): Promise<string> {
     // URL avec préfixe pour l'endpoint public
-    const protocol = minioConfig.useSSL ? 'https' : 'http'
-    return `${protocol}://${minioConfig.endPoint}:${minioConfig.port}/${bucket}/${filename}`
+    return `${minioConfig.publicEndPoint}/${bucket}/${filename}`
   }
 
   /**
