@@ -3,9 +3,11 @@ import CategoryRepository from '../repositories/category_repository.js'
 import SlugService from '../services/slug_service.js'
 import { createCategoryValidator, updateCategoryValidator } from '../validators/create_category.js'
 import Category from '#models/category'
+import { inject } from '@adonisjs/core'
 
+@inject()
 export default class CategoriesController {
-  private categoryRepository = new CategoryRepository()
+  constructor(private categoryRepository: CategoryRepository) {}
 
   /**
    * Récupère toutes les catégories avec pagination et tri

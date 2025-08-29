@@ -5,6 +5,7 @@ import Category from './category.js'
 import Brand from './brand.js'
 import File from './file.js'
 import ProductMetadata from './product_metadata.js'
+import Review from './review.js'
 
 export default class Product extends BaseModel {
   @column({ isPrimary: true })
@@ -55,6 +56,9 @@ export default class Product extends BaseModel {
   @column()
   declare specifications: Record<string, any>
 
+  @column({ columnName: 'additional_info' })
+  declare additionalInfo: Record<string, any> | null
+
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime
 
@@ -82,6 +86,9 @@ export default class Product extends BaseModel {
   @hasMany(() => ProductMetadata)
   declare metadata: HasMany<typeof ProductMetadata>
 
+  @hasMany(() => Review)
+  declare reviews: HasMany<typeof Review>
+
   // Computed property pour l'image principale
   @computed()
   public get imageUrl() {
@@ -90,7 +97,7 @@ export default class Product extends BaseModel {
     }
 
     // Chercher l'image marquée comme principale
-    const mainImage = this.files.find(file => file.isMain === true)
+    const mainImage = this.files.find((file) => file.isMain === true)
     if (mainImage) {
       return mainImage.url
     }

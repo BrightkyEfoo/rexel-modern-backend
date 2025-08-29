@@ -30,6 +30,20 @@ export const createProductValidator = vine.compile(
         })
       )
       .optional(),
+    // Gestion des fichiers
+    files: vine
+      .array(
+        vine.object({
+          url: vine.string(),
+          filename: vine.string(),
+          originalName: vine.string(),
+          size: vine.number().positive(),
+          mimeType: vine.string(),
+        })
+      )
+      .optional(),
+    // Informations additionnelles
+    additionalInfo: vine.object({}).optional(),
   })
 )
 
@@ -53,6 +67,7 @@ export const updateProductValidator = vine.compile(
     // Relations many-to-many avec les catégories
     categoryIds: vine.array(vine.number().positive()).optional(),
     fabricationCountryCode: vine.string().optional(),
+    additionalInfo: vine.object({}).optional(),
     // Gestion des images
     images: vine
       .array(
@@ -60,6 +75,18 @@ export const updateProductValidator = vine.compile(
           url: vine.string(),
           alt: vine.string().optional(),
           isMain: vine.boolean().optional(),
+        })
+      )
+      .optional(),
+    // Gestion des fichiers
+    files: vine
+      .array(
+        vine.object({
+          url: vine.string(),
+          filename: vine.string(),
+          originalName: vine.string(),
+          size: vine.number().positive(),
+          mimeType: vine.string(),
         })
       )
       .optional(),

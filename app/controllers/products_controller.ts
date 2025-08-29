@@ -4,9 +4,11 @@ import SlugService from '../services/slug_service.js'
 import { createProductValidator, updateProductValidator } from '../validators/create_product.js'
 import Category from '../models/category.js'
 import Product from '#models/product'
+import { inject } from '@adonisjs/core'
 
+@inject()
 export default class ProductsController {
-  private productRepository = new ProductRepository()
+  constructor(private productRepository: ProductRepository) {}
 
   /**
    * Récupère tous les produits avec pagination et tri
@@ -118,7 +120,7 @@ export default class ProductsController {
       const payload = await request.validateUsing(createProductValidator)
 
       // Extraction des données pour les relations
-      const { categoryIds, images, ...productData } = payload
+      const { categoryIds, images, files, additionalInfo, ...productData } = payload
 
       // Génération du slug automatique
       const slug = await SlugService.generateUniqueSlug(payload.name, 'products')
@@ -126,6 +128,7 @@ export default class ProductsController {
       // Création du produit
       const product = await this.productRepository.create({
         ...productData,
+        additionalInfo: additionalInfo || null,
         slug,
       })
 
@@ -148,6 +151,24 @@ export default class ProductsController {
             fileableType: 'Product',
             fileableId: product.id,
             isMain: image.isMain || false,
+          })
+        }
+      }
+
+      // Création des fichiers documents si spécifiés
+      if (files && files.length > 0) {
+        for (const file of files) {
+          await product.related('files').create({
+            filename: file.filename,
+            originalName: file.originalName,
+            path: file.url,
+            url: file.url,
+            size: file.size,
+            mimeType: file.mimeType,
+            bucket: 'rexel-public',
+            fileableType: 'Product',
+            fileableId: product.id,
+            isMain: false,
           })
         }
       }
@@ -196,10 +217,13 @@ export default class ProductsController {
       }
 
       // Extraction des données pour les relations
-      const { categoryIds, images, ...productData } = payload
+      const { categoryIds, images, files, additionalInfo, ...productData } = payload
 
       // Mise à jour du slug si le nom a changé
-      let updatedData: typeof productData & { slug?: string } = { ...productData }
+      let updatedData: any = { ...productData }
+      if (additionalInfo !== undefined) {
+        updatedData.additionalInfo = additionalInfo
+      }
       if (payload.name) {
         const newSlug = await SlugService.updateSlugIfNeeded(
           payload.name,
@@ -221,13 +245,13 @@ export default class ProductsController {
         await updatedProduct.related('categories').sync(categoryIds)
       }
 
-      // Mise à jour des images si spécifiées
-      if (images !== undefined) {
-        // Supprimer les anciennes images
+      // Mise à jour des images et fichiers si spécifiés
+      if (images !== undefined || files !== undefined) {
+        // Supprimer tous les anciens fichiers
         await updatedProduct.related('files').query().delete()
 
         // Créer les nouvelles images
-        if (images.length > 0) {
+        if (images && images.length > 0) {
           for (const [index, image] of images.entries()) {
             await updatedProduct.related('files').create({
               filename: image.alt || `Image ${index + 1}`,
@@ -240,6 +264,24 @@ export default class ProductsController {
               fileableType: 'Product',
               fileableId: updatedProduct.id,
               isMain: image.isMain || false,
+            })
+          }
+        }
+
+        // Créer les nouveaux fichiers
+        if (files && files.length > 0) {
+          for (const file of files) {
+            await updatedProduct.related('files').create({
+              filename: file.filename,
+              originalName: file.originalName,
+              path: file.url,
+              url: file.url,
+              size: file.size,
+              mimeType: file.mimeType,
+              bucket: 'rexel-public',
+              fileableType: 'Product',
+              fileableId: updatedProduct.id,
+              isMain: false,
             })
           }
         }
@@ -512,6 +554,49 @@ export default class ProductsController {
   }
 
   /**
+   * Récupère les filtres globaux pour le catalogue (toutes les catégories)
+   */
+  async getGlobalFilters({ response }: HttpContext) {
+    try {
+      // Récupérer toutes les marques avec le nombre de produits
+      const brands = await this.productRepository.getBrandsWithProductCount()
+
+      // Récupérer la fourchette de prix globale
+      const priceRange = await this.productRepository.getGlobalPriceRange()
+
+      // Récupérer les clés de métadonnées disponibles
+      const metadataKeys = await this.productRepository.getAvailableMetadataKeys()
+
+      // Récupérer les valeurs pour chaque clé de métadonnée
+      const metadataValues: Record<string, any[]> = {}
+      for (const key of metadataKeys) {
+        metadataValues[key] = await this.productRepository.getMetadataFilterValues(key)
+      }
+
+      return response.ok({
+        data: {
+          brands,
+          priceRange,
+          specifications: metadataKeys.map((key) => ({
+            name: key,
+            values: metadataValues[key] || [],
+          })),
+        },
+        message: 'Global filters retrieved successfully',
+        status: 200,
+        timestamp: new Date().toISOString(),
+      })
+    } catch (error) {
+      console.error('Error fetching global filters:', error)
+      return response.internalServerError({
+        message: 'Error fetching global filters',
+        status: 500,
+        timestamp: new Date().toISOString(),
+      })
+    }
+  }
+
+  /**
    * Récupère les produits d'une catégorie avec filtres avancés
    * Inclut les produits des sous-catégories si include_subcategories=true
    */
@@ -594,6 +679,51 @@ export default class ProductsController {
       console.log('Error fetching products by category2', error)
       return response.internalServerError({
         message: 'Error fetching products by category',
+        status: 500,
+        timestamp: new Date().toISOString(),
+      })
+    }
+  }
+
+  /**
+   * Récupère les produits similaires (max 4)
+   * Basé sur la même catégorie, marque ou prix similaire
+   */
+  async similar({ params, response }: HttpContext) {
+    try {
+      console.log('Fetching similar products for slug:', params.slug)
+
+      const product = await this.productRepository.findBySlugWithRelations(params.slug)
+
+      if (!product) {
+        console.log('Product not found for slug:', params.slug)
+        return response.notFound({
+          message: 'Product not found',
+          status: 404,
+          timestamp: new Date().toISOString(),
+        })
+      }
+
+      console.log('Found product:', {
+        id: product.id,
+        name: product.name,
+        brandId: product.brandId,
+      })
+
+      const similarProducts = await this.productRepository.findSimilarProducts(product.id, 4)
+
+      console.log('Found similar products:', similarProducts.length)
+
+      return response.ok({
+        data: similarProducts,
+        message: 'Similar products retrieved successfully',
+        status: 200,
+        timestamp: new Date().toISOString(),
+      })
+    } catch (error) {
+      console.error('Error fetching similar products:', error)
+      return response.internalServerError({
+        message: 'Error fetching similar products',
         status: 500,
         timestamp: new Date().toISOString(),
       })

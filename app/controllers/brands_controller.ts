@@ -3,9 +3,11 @@ import BrandRepository from '../repositories/brand_repository.js'
 import SlugService from '../services/slug_service.js'
 import { createBrandValidator, updateBrandValidator } from '../validators/create_brand.js'
 import Brand from '#models/brand'
+import { inject } from '@adonisjs/core'
 
+@inject()
 export default class BrandsController {
-  private brandRepository = new BrandRepository()
+  constructor(private brandRepository: BrandRepository) {}
 
   /**
    * Récupère toutes les marques avec pagination et tri

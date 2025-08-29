@@ -8,6 +8,7 @@ export function registerPublicProductRoutes() {
       router.get('/products', '#controllers/products_controller.index')
       router.get('/products/featured', '#controllers/products_controller.featured')
       router.get('/products/filters', '#controllers/products_controller.getFilters')
+      router.get('/products/global-filters', '#controllers/products_controller.getGlobalFilters')
       router.get(
         '/products/filters/:key/values',
         '#controllers/products_controller.getFilterValues'
@@ -15,6 +16,7 @@ export function registerPublicProductRoutes() {
       router.get('/products/category/:slug', '#controllers/products_controller.getByCategory')
       router.get('/products/brand/:id', '#controllers/products_controller.getByBrand')
       router.get('/products/:slug', '#controllers/products_controller.show')
+      router.get('/products/:slug/similar', '#controllers/products_controller.similar')
     })
     .prefix('/api/v1/opened')
 }

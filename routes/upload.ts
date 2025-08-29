@@ -19,6 +19,12 @@ router
 
     // Delete image
     router.delete('/image', [UploadController, 'deleteImage'])
+
+    // Upload multiple files (documents)
+    router.post('/files', [UploadController, 'uploadFiles'])
+
+    // Upload single file (document)
+    router.post('/file', [UploadController, 'uploadSingleFile'])
   })
   .prefix('/api/v1/secured/upload')
   .use(middleware.auth())

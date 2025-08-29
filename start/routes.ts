@@ -18,6 +18,7 @@ import { registerPublicFileRoutes, registerSecuredFileRoutes } from '../routes/f
 import { registerPublicCartRoutes, registerSecuredCartRoutes } from '../routes/carts.js'
 import { registerPublicAuthRoutes, registerSecuredAuthRoutes } from '../routes/auth.js'
 import { registerSecuredAddressRoutes } from '../routes/addresses.js'
+import { registerPublicReviewRoutes, registerSecuredReviewRoutes } from '../routes/reviews.js'
 import { registerUtilRoutes } from '../routes/utils.js'
 import '../routes/favorites.js'
 import '../routes/upload.js'
@@ -30,6 +31,7 @@ registerPublicBrandRoutes()
 registerPublicFileRoutes()
 registerPublicCartRoutes()
 registerPublicAuthRoutes()
+registerPublicReviewRoutes()
 
 // Enregistrement des routes sécurisées
 registerSecuredProductRoutes()
@@ -39,6 +41,7 @@ registerSecuredFileRoutes()
 registerSecuredCartRoutes()
 registerSecuredAuthRoutes()
 registerSecuredAddressRoutes()
+registerSecuredReviewRoutes()
 
 // Enregistrement des routes utilitaires
 registerUtilRoutes()

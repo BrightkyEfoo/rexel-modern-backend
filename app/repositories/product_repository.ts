@@ -258,4 +258,110 @@ export default class ProductRepository extends BaseRepository<typeof Product> {
       metadataValues,
     }
   }
+
+  /**
+   * Récupère les marques avec le nombre de produits pour chaque marque
+   */
+  async getBrandsWithProductCount(): Promise<
+    Array<{ id: number; name: string; productCount: number }>
+  > {
+    const result = await Product.query()
+      .join('brands', 'products.brand_id', 'brands.id')
+      .select('brands.id', 'brands.name')
+      .count('products.id as product_count')
+      .where('products.is_active', true)
+      .groupBy('brands.id', 'brands.name')
+      .orderBy('brands.name', 'asc')
+
+    return result.map((row) => ({
+      id: row.id,
+      name: row.name,
+      productCount: Number.parseInt(row.$extras.product_count),
+    }))
+  }
+
+  /**
+   * Récupère la fourchette de prix globale (min/max)
+   */
+  async getGlobalPriceRange(): Promise<{ min: number; max: number }> {
+    const result = await Product.query()
+      .select(
+        Product.query().min('price').where('is_active', true).as('min_price'),
+        Product.query().max('price').where('is_active', true).as('max_price')
+      )
+      .where('is_active', true)
+      .first()
+
+    return {
+      min: result ? parseFloat(result.$extras.min_price || '0') : 0,
+      max: result ? parseFloat(result.$extras.max_price || '1000') : 1000,
+    }
+  }
+
+  /**
+   * Récupère les produits similaires (max 4)
+   * Basé sur la même catégorie, marque ou prix similaire
+   */
+  async findSimilarProducts(productId: number, limit: number = 4): Promise<Product[]> {
+    try {
+      // Récupérer le produit de référence avec ses relations
+      const referenceProduct = await Product.query()
+        .where('id', productId)
+        .preload('categories')
+        .preload('brand')
+        .first()
+
+      if (!referenceProduct) {
+        return []
+      }
+
+      // Récupérer les IDs des catégories du produit
+      const categoryIds = referenceProduct.categories?.map((cat) => cat.id) || []
+
+      // Construire la requête pour les produits similaires
+      const query = Product.query()
+        .preload('categories')
+        .preload('brand')
+        .preload('files')
+        .where('id', '!=', productId) // Exclure le produit actuel
+        .where('is_active', true) // Seulement les produits actifs
+        .where('in_stock', true) // Seulement les produits en stock
+
+      // Ajouter les conditions de similarité avec OR
+      query.where((builder) => {
+        let hasCondition = false
+
+        // Produits de la même catégorie
+        if (categoryIds.length > 0) {
+          builder.whereHas('categories', (subQuery) => {
+            subQuery.whereIn('categories.id', categoryIds)
+          })
+          hasCondition = true
+        }
+
+        // Ou produits de la même marque
+        if (referenceProduct.brandId) {
+          if (hasCondition) {
+            builder.orWhere('brand_id', referenceProduct.brandId)
+          } else {
+            builder.where('brand_id', referenceProduct.brandId)
+            hasCondition = true
+          }
+        }
+
+        // Note: Comparaison de prix temporairement désactivée à cause des problèmes de formatage
+        // des prix dans la base de données (format français vs américain)
+        // TODO: Normaliser le format des prix dans la base de données
+      })
+
+      // Tri simple par featured et date de création
+      query.orderBy('is_featured', 'desc')
+      query.orderBy('created_at', 'desc')
+
+      return await query.limit(limit)
+    } catch (error) {
+      console.error('Error in findSimilarProducts:', error)
+      return []
+    }
+  }
 }
