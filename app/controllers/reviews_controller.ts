@@ -264,7 +264,7 @@ export default class ReviewsController {
   /**
    * Récupérer les avis d'un utilisateur
    */
-  async userReviews({ params, response, auth }: HttpContext) {
+  async userReviews({ response, auth }: HttpContext) {
     try {
       const user = auth.user!
       const reviews = await this.reviewRepository.getUserReviews(user.id)
