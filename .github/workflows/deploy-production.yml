@@ -252,6 +252,8 @@ jobs:
           SMTP_USERNAME=${{ secrets.SMTP_USERNAME }}
           SMTP_PASSWORD=${{ secrets.SMTP_PASSWORD }}
           SMTP_FROM=${{ secrets.SMTP_FROM }}
+          MAIL_USERNAME=${{ secrets.MAIL_USERNAME }}
+          GOOGLE_APP_SECRET=${{ secrets.GOOGLE_APP_SECRET }}
           
           # Frontend URL
           FRONTEND_URL=${{ secrets.FRONTEND_URL }}
@@ -413,6 +415,8 @@ jobs:
             SMTP_USERNAME=${{ secrets.SMTP_USERNAME }}
             SMTP_PASSWORD=${{ secrets.SMTP_PASSWORD }}
             SMTP_FROM=${{ secrets.SMTP_FROM }}
+            MAIL_USERNAME=${{ secrets.MAIL_USERNAME }}
+            GOOGLE_APP_SECRET=${{ secrets.GOOGLE_APP_SECRET }}
             
             # Frontend URL
             FRONTEND_URL=${{ secrets.FRONTEND_URL }}
@@ -440,6 +444,8 @@ jobs:
             SMTP_USERNAME=${{ secrets.SMTP_USERNAME }}
             SMTP_PASSWORD=${{ secrets.SMTP_PASSWORD }}
             SMTP_FROM=${{ secrets.SMTP_FROM }}
+            MAIL_USERNAME=${{ secrets.MAIL_USERNAME }}
+            GOOGLE_APP_SECRET=${{ secrets.GOOGLE_APP_SECRET }}
             EOF
             
             echo "✅ Environment file created for docker-compose"

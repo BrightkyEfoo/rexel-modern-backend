@@ -92,6 +92,8 @@ check_var "SMTP_PORT" "optional"
 check_var "SMTP_USERNAME" "optional"
 check_var "SMTP_PASSWORD" "optional"
 check_var "SMTP_FROM" "optional"
+check_var "MAIL_USERNAME" "optional"
+check_var "GOOGLE_APP_SECRET" "optional"
 
 echo ""
 echo "📋 Validation de la configuration interne Docker..."
