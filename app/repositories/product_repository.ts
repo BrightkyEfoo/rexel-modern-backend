@@ -131,6 +131,7 @@ export default class ProductRepository extends BaseRepository<typeof Product> {
       categoryId?: number
       categoryIds?: number[]
       brandId?: number
+      brandIds?: number[]
       isFeatured?: boolean
       isActive?: boolean
       minPrice?: number
@@ -183,7 +184,6 @@ export default class ProductRepository extends BaseRepository<typeof Product> {
     }
 
     if (filters.isActive !== undefined) {
-      console.log('isActive', filters.isActive, typeof filters.isActive)
       query.where('is_active', filters.isActive)
     }
 

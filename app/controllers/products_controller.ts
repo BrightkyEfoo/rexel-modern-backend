@@ -23,9 +23,6 @@ export default class ProductsController {
       const categoryId = request.input('category_id')
       const brandId = request.input('brand_id')
       const brandIds = request.input('brand_ids')
-
-      console.log('brandIds', brandIds)
-
       const minPrice = request.input('min_price')
       const maxPrice = request.input('max_price')
       const isFeatured = request.input('is_featured')
@@ -204,7 +201,6 @@ export default class ProductsController {
    */
   async update({ params, request, response }: HttpContext) {
     try {
-      console.log('Update product request body:', JSON.stringify(request.body(), null, 2))
       const payload = await request.validateUsing(updateProductValidator)
 
       const product = await this.productRepository.findById(params.id)
@@ -705,12 +701,9 @@ export default class ProductsController {
    */
   async similar({ params, response }: HttpContext) {
     try {
-      console.log('Fetching similar products for slug:', params.slug)
-
       const product = await this.productRepository.findBySlugWithRelations(params.slug)
 
       if (!product) {
-        console.log('Product not found for slug:', params.slug)
         return response.notFound({
           message: 'Product not found',
           status: 404,
@@ -718,15 +711,7 @@ export default class ProductsController {
         })
       }
 
-      console.log('Found product:', {
-        id: product.id,
-        name: product.name,
-        brandId: product.brandId,
-      })
-
       const similarProducts = await this.productRepository.findSimilarProducts(product.id, 4)
-
-      console.log('Found similar products:', similarProducts.length)
 
       return response.ok({
         data: similarProducts,
