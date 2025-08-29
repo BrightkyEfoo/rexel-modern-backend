@@ -174,6 +174,10 @@ export default class ProductRepository extends BaseRepository<typeof Product> {
       query.where('brand_id', filters.brandId)
     }
 
+    if (filters.brandIds && filters.brandIds.length > 0) {
+      query.whereIn('brand_id', filters.brandIds)
+    }
+
     if (filters.isFeatured !== undefined) {
       query.where('is_featured', filters.isFeatured)
     }
@@ -293,8 +297,8 @@ export default class ProductRepository extends BaseRepository<typeof Product> {
       .first()
 
     return {
-      min: result ? parseFloat(result.$extras.min_price || '0') : 0,
-      max: result ? parseFloat(result.$extras.max_price || '1000') : 1000,
+      min: result ? Number.parseFloat(result.$extras.min_price || '0') : 0,
+      max: result ? Number.parseFloat(result.$extras.max_price || '1000') : 1000,
     }
   }
 

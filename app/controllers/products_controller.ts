@@ -22,6 +22,12 @@ export default class ProductsController {
       const sortOrder = request.input('sort_order', 'desc')
       const categoryId = request.input('category_id')
       const brandId = request.input('brand_id')
+      const brandIds = request.input('brand_ids')
+
+      console.log('brandIds', brandIds)
+
+      const minPrice = request.input('min_price')
+      const maxPrice = request.input('max_price')
       const isFeatured = request.input('is_featured')
       const isActive = request.input('is_active')
       const inStock = request.input('in_stock')
@@ -46,6 +52,13 @@ export default class ProductsController {
         search,
         categoryId,
         brandId,
+        brandIds: brandIds
+          ? typeof brandIds === 'string'
+            ? brandIds.split(',').map(Number)
+            : brandIds
+          : undefined,
+        minPrice: minPrice ? Number.parseFloat(minPrice) : undefined,
+        maxPrice: maxPrice ? Number.parseFloat(maxPrice) : undefined,
         isActive: isActive !== undefined ? (isActive === 'true' ? true : false) : undefined,
         isFeatured: isFeatured !== undefined ? (isFeatured === 'true' ? true : false) : undefined,
         metadata: Object.keys(metadataFilters).length > 0 ? metadataFilters : undefined,
@@ -74,6 +87,7 @@ export default class ProductsController {
         timestamp: new Date().toISOString(),
       })
     } catch (error) {
+      console.log('Error fetching products', error)
       return response.internalServerError({
         message: 'Error fetching products',
         status: 500,
