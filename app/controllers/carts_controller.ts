@@ -19,9 +19,12 @@ export default class CartsController {
       cart = await Cart.query()
         .where('userId', user.id)
         .preload('items', (itemQuery) => {
-          itemQuery.preload('product', (productQuery) => {
-            productQuery.preload('brand')
-          })
+          itemQuery
+            .preload('product', (productQuery) => {
+              productQuery.preload('brand')
+              productQuery.preload('files')
+            })
+            .orderBy('productId', 'asc') // Trier par ID du produit
         })
         .first()
     } else if (sessionId) {
@@ -30,9 +33,12 @@ export default class CartsController {
         .where('sessionId', sessionId)
         .whereNull('userId')
         .preload('items', (itemQuery) => {
-          itemQuery.preload('product', (productQuery) => {
-            productQuery.preload('brand')
-          })
+          itemQuery
+            .preload('product', (productQuery) => {
+              productQuery.preload('brand')
+              productQuery.preload('files')
+            })
+            .orderBy('productId', 'asc') // Trier par ID du produit
         })
         .first()
     }
@@ -87,10 +93,7 @@ export default class CartsController {
     if (user) {
       cart = await Cart.firstOrCreate({ userId: user.id }, { userId: user.id })
     } else if (sessionId) {
-      cart = await Cart.firstOrCreate(
-        { sessionId },
-        { sessionId }
-      )
+      cart = await Cart.firstOrCreate({ sessionId }, { sessionId })
     } else {
       return response.badRequest({
         message: 'Session ID requis pour les utilisateurs non connectés',
@@ -120,11 +123,13 @@ export default class CartsController {
       })
     }
 
-    // Recharger le panier avec les items
+    // Recharger le panier avec les items triés
     await cart.load('items', (itemQuery) => {
-      itemQuery.preload('product', (productQuery) => {
-        productQuery.preload('brand')
-      })
+      itemQuery
+        .preload('product', (productQuery) => {
+          productQuery.preload('brand')
+        })
+        .orderBy('productId', 'asc') // Trier par ID du produit
     })
 
     return response.ok({
@@ -147,11 +152,7 @@ export default class CartsController {
     const itemId = params.itemId
 
     // Récupérer l'item avec son panier
-    const item = await CartItem.query()
-      .where('id', itemId)
-      .preload('cart')
-      .preload('product')
-      .first()
+    const item = await CartItem.query().where('id', itemId).preload('cart').first()
 
     if (!item) {
       return response.notFound({
@@ -159,21 +160,34 @@ export default class CartsController {
       })
     }
 
-    // Vérifier que l'utilisateur a le droit de modifier ce panier
-    const cart = item.cart
-    if (user && cart.userId !== user.id) {
-      return response.forbidden({
-        message: 'Accès non autorisé',
-      })
-    }
-    if (!user && cart.sessionId !== sessionId) {
-      return response.forbidden({
-        message: 'Accès non autorisé',
+    // Vérifier que l'utilisateur a accès à ce panier
+    if (user) {
+      if (item.cart.userId !== user.id) {
+        return response.forbidden({
+          message: 'Accès non autorisé',
+        })
+      }
+    } else if (sessionId) {
+      if (item.cart.sessionId !== sessionId) {
+        return response.forbidden({
+          message: 'Accès non autorisé',
+        })
+      }
+    } else {
+      return response.unauthorized({
+        message: 'Authentification requise',
       })
     }
 
-    // Vérifier le stock
-    if (payload.quantity > item.product.stockQuantity) {
+    // Vérifier le stock du produit
+    const product = await Product.find(item.productId)
+    if (!product) {
+      return response.notFound({
+        message: 'Produit non trouvé',
+      })
+    }
+
+    if (payload.quantity > product.stockQuantity) {
       return response.badRequest({
         message: 'Quantité demandée supérieure au stock disponible',
       })
@@ -183,19 +197,21 @@ export default class CartsController {
     item.quantity = payload.quantity
     await item.save()
 
-    // Recharger le panier
-    await cart.load('items', (itemQuery) => {
-      itemQuery.preload('product', (productQuery) => {
-        productQuery.preload('brand')
-      })
+    // Recharger le panier avec les items triés
+    await item.cart.load('items', (itemQuery) => {
+      itemQuery
+        .preload('product', (productQuery) => {
+          productQuery.preload('brand')
+        })
+        .orderBy('productId', 'asc') // Trier par ID du produit
     })
 
     return response.ok({
       data: {
-        id: cart.id,
-        items: cart.items,
-        totalItems: cart.totalItems,
-        totalPrice: cart.totalPrice,
+        id: item.cart.id,
+        items: item.cart.items,
+        totalItems: item.cart.totalItems,
+        totalPrice: item.cart.totalPrice,
       },
     })
   }
@@ -217,35 +233,43 @@ export default class CartsController {
       })
     }
 
-    // Vérifier que l'utilisateur a le droit de modifier ce panier
-    const cart = item.cart
-    if (user && cart.userId !== user.id) {
-      return response.forbidden({
-        message: 'Accès non autorisé',
-      })
-    }
-    if (!user && cart.sessionId !== sessionId) {
-      return response.forbidden({
-        message: 'Accès non autorisé',
+    // Vérifier que l'utilisateur a accès à ce panier
+    if (user) {
+      if (item.cart.userId !== user.id) {
+        return response.forbidden({
+          message: 'Accès non autorisé',
+        })
+      }
+    } else if (sessionId) {
+      if (item.cart.sessionId !== sessionId) {
+        return response.forbidden({
+          message: 'Accès non autorisé',
+        })
+      }
+    } else {
+      return response.unauthorized({
+        message: 'Authentification requise',
       })
     }
 
     // Supprimer l'item
     await item.delete()
 
-    // Recharger le panier
-    await cart.load('items', (itemQuery) => {
-      itemQuery.preload('product', (productQuery) => {
-        productQuery.preload('brand')
-      })
+    // Recharger le panier avec les items triés
+    await item.cart.load('items', (itemQuery) => {
+      itemQuery
+        .preload('product', (productQuery) => {
+          productQuery.preload('brand')
+        })
+        .orderBy('productId', 'asc') // Trier par ID du produit
     })
 
     return response.ok({
       data: {
-        id: cart.id,
-        items: cart.items,
-        totalItems: cart.totalItems,
-        totalPrice: cart.totalPrice,
+        id: item.cart.id,
+        items: item.cart.items,
+        totalItems: item.cart.totalItems,
+        totalPrice: item.cart.totalPrice,
       },
     })
   }
@@ -266,6 +290,7 @@ export default class CartsController {
     }
 
     if (cart) {
+      // Supprimer tous les items du panier
       await CartItem.query().where('cartId', cart.id).delete()
     }
 
@@ -332,11 +357,13 @@ export default class CartsController {
     // Supprimer le panier de session
     await sessionCart.delete()
 
-    // Recharger le panier utilisateur
+    // Recharger le panier utilisateur avec les items triés
     await userCart.load('items', (itemQuery) => {
-      itemQuery.preload('product', (productQuery) => {
-        productQuery.preload('brand')
-      })
+      itemQuery
+        .preload('product', (productQuery) => {
+          productQuery.preload('brand')
+        })
+        .orderBy('productId', 'asc') // Trier par ID du produit
     })
 
     return response.ok({
