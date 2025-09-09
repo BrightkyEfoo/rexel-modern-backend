@@ -157,4 +157,152 @@ export default class FileService {
     const bucket = minioConfig.buckets.public || 'rexel-public'
     await this.minioClient.removeObject(bucket, filename)
   }
+
+  /**
+   * Télécharge une image depuis une URL et la sauvegarde dans MinIO
+   */
+  static async downloadAndSaveImage(
+    imageUrl: string,
+    bucket: string,
+    fileableType?: string,
+    fileableId?: number
+  ): Promise<{ success: boolean; filename?: string; url?: string; error?: string }> {
+    try {
+      // Valider l'URL
+      const url = new URL(imageUrl)
+      
+      // Vérifier que c'est une image
+      const allowedExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp']
+      const urlPath = url.pathname.toLowerCase()
+      const hasValidExtension = allowedExtensions.some(ext => urlPath.endsWith(ext))
+      
+      if (!hasValidExtension) {
+        return { success: false, error: 'Extension de fichier non supportée' }
+      }
+
+      // Télécharger l'image
+      const response = await fetch(imageUrl, {
+        method: 'GET',
+        headers: {
+          'User-Agent': 'KesiMarket-Bot/1.0',
+        },
+        // Timeout de 30 secondes
+        signal: AbortSignal.timeout(30000),
+      })
+
+      if (!response.ok) {
+        return { 
+          success: false, 
+          error: `Erreur HTTP ${response.status}: ${response.statusText}` 
+        }
+      }
+
+      // Vérifier le content-type
+      const contentType = response.headers.get('content-type')
+      if (!contentType?.startsWith('image/')) {
+        return { 
+          success: false, 
+          error: `Type de contenu invalide: ${contentType}` 
+        }
+      }
+
+      // Vérifier la taille (max 10MB)
+      const contentLength = response.headers.get('content-length')
+      if (contentLength && parseInt(contentLength) > 10 * 1024 * 1024) {
+        return { 
+          success: false, 
+          error: 'Image trop volumineuse (max 10MB)' 
+        }
+      }
+
+      // Obtenir le buffer de l'image
+      const imageBuffer = Buffer.from(await response.arrayBuffer())
+
+      // Générer un nom de fichier unique
+      const extension = this.getFileExtensionFromUrl(imageUrl) || '.jpg'
+      const filename = `${randomUUID()}${extension}`
+      const path = `${bucket}/${filename}`
+
+      // Upload vers MinIO
+      await this.minioClient.putObject(bucket, filename, imageBuffer, imageBuffer.length, {
+        'Content-Type': contentType,
+        'Content-Length': imageBuffer.length,
+      })
+
+      // Construction de l'URL publique
+      const publicUrl = await this.getPublicUrl(bucket, filename)
+
+      // Sauvegarde en base si des informations d'entité sont fournies
+      if (fileableType && fileableId) {
+        await File.create({
+          filename,
+          originalName: this.getFilenameFromUrl(imageUrl),
+          mimeType: contentType,
+          size: imageBuffer.length,
+          path,
+          url: publicUrl,
+          bucket,
+          fileableType,
+          fileableId,
+        })
+      }
+
+      return { 
+        success: true, 
+        filename, 
+        url: publicUrl 
+      }
+
+    } catch (error) {
+      console.error('Erreur lors du téléchargement de l\'image:', error)
+      
+      if (error.name === 'TimeoutError') {
+        return { success: false, error: 'Timeout lors du téléchargement' }
+      }
+      
+      if (error.name === 'TypeError' && error.message.includes('fetch')) {
+        return { success: false, error: 'URL inaccessible' }
+      }
+
+      return { 
+        success: false, 
+        error: error.message || 'Erreur inconnue lors du téléchargement' 
+      }
+    }
+  }
+
+  /**
+   * Extrait l'extension de fichier depuis une URL
+   */
+  private static getFileExtensionFromUrl(url: string): string | null {
+    try {
+      const urlObj = new URL(url)
+      const pathname = urlObj.pathname
+      const lastDot = pathname.lastIndexOf('.')
+      
+      if (lastDot === -1) return null
+      
+      const extension = pathname.substring(lastDot).toLowerCase()
+      const allowedExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp']
+      
+      return allowedExtensions.includes(extension) ? extension : null
+    } catch {
+      return null
+    }
+  }
+
+  /**
+   * Extrait le nom de fichier depuis une URL
+   */
+  private static getFilenameFromUrl(url: string): string {
+    try {
+      const urlObj = new URL(url)
+      const pathname = urlObj.pathname
+      const filename = pathname.substring(pathname.lastIndexOf('/') + 1)
+      
+      return filename || 'downloaded-image'
+    } catch {
+      return 'downloaded-image'
+    }
+  }
 }

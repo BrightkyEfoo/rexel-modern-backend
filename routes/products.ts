@@ -32,6 +32,11 @@ export function registerSecuredProductRoutes() {
       // Routes de validation unique
       router.post('/products/validate/sku', '#controllers/products_controller.checkSkuUnique')
       router.post('/products/validate/name', '#controllers/products_controller.checkNameUnique')
+
+      // Routes d'importation en masse
+      router.post('/products/bulk-import', '#controllers/products_bulk_controller.bulkImport')
+      router.get('/products/bulk-import/example', '#controllers/products_bulk_controller.getImportExample')
+      router.post('/products/bulk-import/validate-csv', '#controllers/products_bulk_controller.validateCsv')
     })
     .prefix('/api/v1/secured')
     .middleware([middleware.auth()])
