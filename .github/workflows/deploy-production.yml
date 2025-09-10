@@ -578,6 +578,8 @@ jobs:
             echo "Waiting for Typesense to be ready..."
             MAX_TYPESENSE_ATTEMPTS=30
             TYPESENSE_ATTEMPT=1
+
+            ${USE_SUDO}docker compose -f docker-compose.prod.yml up -d typesense
             
             while [ $TYPESENSE_ATTEMPT -le $MAX_TYPESENSE_ATTEMPTS ]; do
               echo "🔍 Typesense check attempt $TYPESENSE_ATTEMPT/$MAX_TYPESENSE_ATTEMPTS..."
