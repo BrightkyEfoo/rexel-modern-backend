@@ -240,6 +240,11 @@ jobs:
           REDIS_PORT=6379
           REDIS_PASSWORD=${{ secrets.REDIS_PASSWORD }}
           
+          # Typesense Configuration (Internal Service)
+          TYPESENSE_HOST=typesense
+          TYPESENSE_PORT=8108
+          TYPESENSE_API_KEY=${{ secrets.TYPESENSE_API_KEY }}
+          
           # JWT Configuration
           JWT_SECRET=${{ secrets.JWT_SECRET }}
           
@@ -398,13 +403,18 @@ jobs:
             MINIO_ROOT_PASSWORD=${{ secrets.MINIO_ROOT_PASSWORD }}
             MINIO_PUBLIC_ENDPOINT=${{ secrets.MINIO_PUBLIC_ENDPOINT }}
             
-            # Redis Configuration (optional)
-            REDIS_HOST=redis
-            REDIS_PORT=6379
-            REDIS_PASSWORD=${{ secrets.REDIS_PASSWORD }}
-            
-            # JWT Configuration
-            JWT_SECRET=${{ secrets.JWT_SECRET }}
+          # Redis Configuration (optional)
+          REDIS_HOST=redis
+          REDIS_PORT=6379
+          REDIS_PASSWORD=${{ secrets.REDIS_PASSWORD }}
+          
+          # Typesense Configuration
+          TYPESENSE_HOST=typesense
+          TYPESENSE_PORT=8108
+          TYPESENSE_API_KEY=${{ secrets.TYPESENSE_API_KEY }}
+          
+          # JWT Configuration
+          JWT_SECRET=${{ secrets.JWT_SECRET }}
             
             # CORS Configuration
             CORS_ORIGINS=${{ secrets.CORS_ORIGINS }}
@@ -435,6 +445,7 @@ jobs:
             MINIO_BUCKET=${{ secrets.MINIO_BUCKET }}
             MINIO_PUBLIC_ENDPOINT=${{ secrets.MINIO_PUBLIC_ENDPOINT }}
             REDIS_PASSWORD=${{ secrets.REDIS_PASSWORD }}
+            TYPESENSE_API_KEY=${{ secrets.TYPESENSE_API_KEY }}
             APP_KEY=${{ secrets.APP_KEY }}
             JWT_SECRET=${{ secrets.JWT_SECRET }}
             CORS_ORIGINS=${{ secrets.CORS_ORIGINS }}
@@ -506,9 +517,9 @@ jobs:
             
             echo "✅ Network kesimarket-net confirmed ready"
             
-            # Start infrastructure services first (db, minio, redis)
+            # Start infrastructure services first (db, minio, redis, typesense)
             echo 'Starting infrastructure services...'
-            ${USE_SUDO}docker compose -f docker-compose.prod.yml up -d db minio redis
+            ${USE_SUDO}docker compose -f docker-compose.prod.yml up -d db minio redis typesense
             
             # Wait for database to be ready with better error handling
             echo "Waiting for database to be ready..."
@@ -562,6 +573,30 @@ jobs:
                 sleep 3
               fi
               MINIO_ATTEMPT=$((MINIO_ATTEMPT + 1))
+            done
+            
+            # Wait for Typesense to be ready
+            echo "Waiting for Typesense to be ready..."
+            MAX_TYPESENSE_ATTEMPTS=30
+            TYPESENSE_ATTEMPT=1
+            
+            while [ $TYPESENSE_ATTEMPT -le $MAX_TYPESENSE_ATTEMPTS ]; do
+              echo "🔍 Typesense check attempt $TYPESENSE_ATTEMPT/$MAX_TYPESENSE_ATTEMPTS..."
+              
+              if ${USE_SUDO}docker compose -f docker-compose.prod.yml exec -T typesense curl -f http://localhost:8108/health >/dev/null 2>&1; then
+                echo "✅ Typesense is ready!"
+                break
+              else
+                if [ $TYPESENSE_ATTEMPT -eq $MAX_TYPESENSE_ATTEMPTS ]; then
+                  echo "❌ Typesense failed to start after $MAX_TYPESENSE_ATTEMPTS attempts"
+                  echo "📋 Typesense container logs:"
+                  ${USE_SUDO}docker compose -f docker-compose.prod.yml logs typesense
+                  exit 1
+                fi
+                echo "⏳ Typesense not ready yet, waiting 3 seconds..."
+                sleep 3
+              fi
+              TYPESENSE_ATTEMPT=$((TYPESENSE_ATTEMPT + 1))
             done
             
             # Verify database is accessible
@@ -776,6 +811,8 @@ jobs:
             ${USE_SUDO}docker ps -f name=kesimarket-minio-prod --format "  {{.Names}}: {{.Status}}" || echo "  Not running"
             echo "Redis:"
             ${USE_SUDO}docker ps -f name=kesimarket-redis-prod --format "  {{.Names}}: {{.Status}}" || echo "  Not running"
+            echo "Typesense:"
+            ${USE_SUDO}docker ps -f name=kesimarket-typesense-prod --format "  {{.Names}}: {{.Status}}" || echo "  Not running"
             
             # Check application logs (last 10 lines)
             echo -e "\n📝 Application Logs (last 10 lines):"
@@ -795,6 +832,14 @@ jobs:
               echo "✅ MinIO connection successful"
             else
               echo "⚠️  MinIO connection test failed (services may still be starting)"
+            fi
+            
+            # Test Typesense connection (optional check)
+            echo -e "\n🔍 Typesense Connection Test:"
+            if ${USE_SUDO}docker compose -f docker-compose.prod.yml exec -T typesense curl -f http://localhost:8108/health > /dev/null 2>&1; then
+              echo "✅ Typesense connection successful"
+            else
+              echo "⚠️  Typesense connection test failed (services may still be starting)"
             fi
             
             # Simple container check instead of API test
@@ -873,6 +918,7 @@ jobs:
           echo "- 🗄️ **PostgreSQL Database**" >> $GITHUB_STEP_SUMMARY
           echo "- 📦 **MinIO Object Storage**" >> $GITHUB_STEP_SUMMARY
           echo "- 🗃️  **Redis Cache** (optional)" >> $GITHUB_STEP_SUMMARY
+          echo "- 🔍 **Typesense Search Engine**" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### 🔗 Next Steps" >> $GITHUB_STEP_SUMMARY
           echo "1. Verify API endpoints are responding correctly" >> $GITHUB_STEP_SUMMARY
