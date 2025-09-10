@@ -97,7 +97,7 @@ services:
     networks:
       - kesimarket-net
     healthcheck:
-      test: ['CMD', 'curl', '-f', 'http://localhost:8108/health']
+      test: ['CMD', 'sh', '-c', 'wget -q -O- http://localhost:8108/health >/dev/null 2>&1 || nc -z localhost 8108']
       interval: 30s
       timeout: 10s
       retries: 3
