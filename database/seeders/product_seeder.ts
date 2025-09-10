@@ -107,7 +107,6 @@ export default class ProductSeeder extends BaseSeeder {
       },
     ]
 
-    console.log(colors, materials, certifications, origins)
     // Insertion en lot pour de meilleures performances
     console.log('📦 Insertion des produits en base...')
     await Product.createMany(products)
