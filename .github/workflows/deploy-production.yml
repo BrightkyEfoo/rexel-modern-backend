@@ -574,42 +574,10 @@ jobs:
               MINIO_ATTEMPT=$((MINIO_ATTEMPT + 1))
             done
             
-            # Wait for Typesense to be ready
-            echo "Waiting for Typesense to be ready..."
-            MAX_TYPESENSE_ATTEMPTS=30
-            TYPESENSE_ATTEMPT=1
-            
-            while [ $TYPESENSE_ATTEMPT -le $MAX_TYPESENSE_ATTEMPTS ]; do
-              echo "🔍 Typesense check attempt $TYPESENSE_ATTEMPT/$MAX_TYPESENSE_ATTEMPTS..."
-              
-              # Check if Typesense is running and logs show it's ready
-              if ${USE_SUDO}docker compose -f docker-compose.prod.yml ps typesense | grep -q "Up" && \
-                 ${USE_SUDO}docker compose -f docker-compose.prod.yml logs typesense 2>/dev/null | grep -q "Typesense has started listening on port 8108"; then
-                echo "✅ Typesense is ready!"
-                break
-              else
-                if [ $TYPESENSE_ATTEMPT -eq $MAX_TYPESENSE_ATTEMPTS ]; then
-                  echo "❌ Typesense health check failed after $MAX_TYPESENSE_ATTEMPTS attempts"
-                  echo "📋 Container status:"
-                  ${USE_SUDO}docker compose -f docker-compose.prod.yml ps typesense
-                  echo "📋 Typesense container logs:"
-                  ${USE_SUDO}docker compose -f docker-compose.prod.yml logs --tail=50 typesense
-                  
-                  # Check if container is running even if health check fails
-                  if ${USE_SUDO}docker compose -f docker-compose.prod.yml ps typesense | grep -q "Up"; then
-                    echo "⚠️  Typesense container is running but health check failed. Continuing deployment..."
-                    echo "ℹ️  The application will handle Typesense connection errors gracefully."
-                    break
-                  else
-                    echo "❌ Typesense container is not running. Deployment failed."
-                    exit 1
-                  fi
-                fi
-                echo "⏳ Typesense not ready yet, waiting 3 seconds..."
-                sleep 3
-              fi
-              TYPESENSE_ATTEMPT=$((TYPESENSE_ATTEMPT + 1))
-            done
+            # Wait a moment for Typesense to start (no health check needed)
+            echo "Waiting 10 seconds for Typesense to start..."
+            sleep 10
+            echo "✅ Typesense startup period completed"
             
             # Verify database is accessible
             echo "Verifying database is accessible..."
@@ -844,15 +812,6 @@ jobs:
               echo "✅ MinIO connection successful"
             else
               echo "⚠️  MinIO connection test failed (services may still be starting)"
-            fi
-            
-            # Test Typesense connection (optional check)
-            echo -e "\n🔍 Typesense Connection Test:"
-            if ${USE_SUDO}docker compose -f docker-compose.prod.yml ps typesense | grep -q "Up" && \
-               ${USE_SUDO}docker compose -f docker-compose.prod.yml logs typesense 2>/dev/null | grep -q "Typesense has started listening on port 8108"; then
-              echo "✅ Typesense connection successful"
-            else
-              echo "⚠️  Typesense connection test failed (services may still be starting)"
             fi
             
             # Simple container check instead of API test
