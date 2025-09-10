@@ -5,6 +5,7 @@ import Brand from '#models/brand'
 import File from '#models/file'
 import FileService from '#services/file_service'
 import product_bulk_validator from '#validators/product_bulk_validator'
+import { randomUUID } from 'node:crypto'
 
 interface BulkProductData {
   name: string
@@ -45,6 +46,22 @@ interface BulkImportResult {
   warnings: string[]
   originalIndex: number
 }
+
+interface ImportProgress {
+  id: string
+  total: number
+  processed: number
+  successful: number
+  failed: number
+  status: 'processing' | 'completed' | 'failed'
+  currentProduct?: string
+  results: BulkImportResult[]
+  startTime: Date
+  endTime?: Date
+}
+
+// Stockage temporaire des progressions (en production, utiliser Redis)
+const importProgressStore = new Map<string, ImportProgress>()
 
 export default class ProductsBulkController {
   /**
@@ -88,7 +105,140 @@ export default class ProductsBulkController {
     return slug
   }
   /**
-   * Importation en masse de produits
+   * Démarre l'importation en masse avec progression
+   */
+  async startBulkImport({ request, response }: HttpContext) {
+    try {
+      // Validation des données
+      const { products } = await request.validateUsing(product_bulk_validator)
+
+      if (!products || products.length === 0) {
+        return response.badRequest({
+          message: 'Aucun produit à importer',
+          errors: ['La liste de produits est vide'],
+        })
+      }
+
+      if (products.length > 1000) {
+        return response.badRequest({
+          message: 'Trop de produits',
+          errors: ['Maximum 1000 produits par import'],
+        })
+      }
+
+      // Générer un ID unique pour cet import
+      const importId = randomUUID()
+
+      // Initialiser la progression
+      const progress: ImportProgress = {
+        id: importId,
+        total: products.length,
+        processed: 0,
+        successful: 0,
+        failed: 0,
+        status: 'processing',
+        results: [],
+        startTime: new Date(),
+      }
+
+      importProgressStore.set(importId, progress)
+
+      // Démarrer le traitement en arrière-plan
+      this.processBulkImportAsync(importId, products)
+
+      return response.ok({
+        message: 'Import démarré',
+        data: {
+          importId,
+          total: products.length,
+        },
+      })
+    } catch (error) {
+      console.error("Erreur lors du démarrage de l'import:", error)
+      return response.internalServerError({
+        message: "Erreur lors du démarrage de l'importation",
+        error: error.message,
+      })
+    }
+  }
+
+  /**
+   * Récupère la progression d'un import
+   */
+  async getImportProgress({ params, response }: HttpContext) {
+    const { importId } = params
+    const progress = importProgressStore.get(importId)
+
+    if (!progress) {
+      return response.notFound({
+        message: 'Import non trouvé',
+      })
+    }
+
+    // Calculer le pourcentage
+    const percentage =
+      progress.total > 0 ? Math.round((progress.processed / progress.total) * 100) : 0
+
+    console.log(
+      `🔍 Backend getImportProgress: processed=${progress.processed}, total=${progress.total}, percentage=${percentage}`
+    )
+
+    return response.ok({
+      data: {
+        ...progress,
+        percentage,
+        duration: progress.endTime
+          ? progress.endTime.getTime() - progress.startTime.getTime()
+          : Date.now() - progress.startTime.getTime(),
+      },
+    })
+  }
+
+  /**
+   * Traite l'import en arrière-plan
+   */
+  private async processBulkImportAsync(importId: string, products: BulkProductData[]) {
+    const progress = importProgressStore.get(importId)
+    if (!progress) return
+
+    try {
+      // Traitement de chaque produit
+      for (const [i, productData] of products.entries()) {
+        progress.currentProduct = productData.name
+
+        // Petit délai pour simuler le traitement et permettre au frontend de voir la progression
+        await new Promise((resolve) => setTimeout(resolve, 1000))
+
+        const result = await this.processProduct(productData, i)
+        progress.results.push(result)
+
+        if (result.success) {
+          progress.successful++
+        } else {
+          progress.failed++
+        }
+
+        // Mettre à jour la progression (i+1 car on commence à 0)
+        progress.processed = i + 1
+
+        console.log(
+          `🔍 Backend progress: ${progress.processed}/${progress.total} (${Math.round((progress.processed / progress.total) * 100)}%)`
+        )
+      }
+
+      // Marquer comme terminé
+      progress.status = 'completed'
+      progress.endTime = new Date()
+      progress.currentProduct = undefined
+    } catch (error) {
+      console.error('Erreur lors du traitement asynchrone:', error)
+      progress.status = 'failed'
+      progress.endTime = new Date()
+    }
+  }
+
+  /**
+   * Importation en masse de produits (ancienne méthode, conservée pour compatibilité)
    */
   async bulkImport({ request, response }: HttpContext) {
     try {
@@ -237,12 +387,12 @@ export default class ProductsBulkController {
       const product = await Product.create({
         name: productData.name.trim(),
         slug,
-        description: productData.description?.trim(),
-        shortDescription: productData.shortDescription?.trim(),
+        description: productData.description?.trim() || null,
+        shortDescription: productData.shortDescription?.trim() || null,
         // longDescription: productData.longDescription?.trim(), // Champ non supporté par le modèle actuel
         // features: productData.features?.trim(), // Champ non supporté par le modèle actuel
         // applications: productData.applications?.trim(), // Champ non supporté par le modèle actuel
-        sku: productData.sku?.trim(),
+        sku: productData.sku?.trim() || null,
         price: productData.price,
         salePrice: productData.salePrice,
         stockQuantity: productData.stockQuantity,
@@ -250,8 +400,8 @@ export default class ProductsBulkController {
         inStock: productData.inStock !== false, // Par défaut true
         isFeatured: productData.isFeatured || false,
         isActive: productData.isActive !== false, // Par défaut actif
-        brandId: brand?.id,
-        fabricationCountryCode: productData.fabricationCountryCode?.trim(),
+        brandId: brand?.id || null,
+        fabricationCountryCode: productData.fabricationCountryCode?.trim() || null,
         // Stocker les champs supplémentaires dans additionalInfo
         additionalInfo: {
           longDescription: productData.longDescription?.trim(),
@@ -380,77 +530,27 @@ export default class ProductsBulkController {
 
       if (urls.length === 0) return
 
-      const productFiles: File[] = []
-
       for (let i = 0; i < urls.length && i < 20; i++) {
         // Max 20 fichiers
         const fileUrl = urls[i]
 
         try {
-          // Télécharger et sauvegarder le fichier
-          const result = await FileService.downloadAndSaveImage(
+          // Télécharger et sauvegarder le fichier avec la nouvelle méthode générique
+          const result = await FileService.downloadAndSaveFile(
             fileUrl,
             'rexel-public',
             'Product',
-            product.id
+            product.id,
+            false, // Les fichiers ne sont jamais principaux
+            'file' // Type de fichier
           )
 
-          if (result.success && result.filename && result.url) {
-            // Déterminer le type MIME basé sur l'extension
-            const extension = fileUrl.split('.').pop()?.toLowerCase() || ''
-            let mimeType = 'application/octet-stream'
-
-            switch (extension) {
-              case 'pdf':
-                mimeType = 'application/pdf'
-                break
-              case 'doc':
-                mimeType = 'application/msword'
-                break
-              case 'docx':
-                mimeType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-                break
-              case 'xls':
-                mimeType = 'application/vnd.ms-excel'
-                break
-              case 'xlsx':
-                mimeType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-                break
-              case 'txt':
-                mimeType = 'text/plain'
-                break
-              case 'zip':
-                mimeType = 'application/zip'
-                break
-              case 'rar':
-                mimeType = 'application/x-rar-compressed'
-                break
-            }
-
-            // Créer l'enregistrement File
-            const file = await File.create({
-              filename: result.filename,
-              originalName: `document-${i + 1}.${extension}`,
-              url: result.url,
-              size: 0, // Taille non disponible pour les fichiers téléchargés
-              mimeType: mimeType,
-              fileableType: 'Product',
-              fileableId: product.id,
-              isMain: false, // Les fichiers ne sont jamais principaux
-            })
-
-            productFiles.push(file)
-          } else {
+          if (!result.success) {
             warnings.push(`Impossible de télécharger le fichier: ${fileUrl} - ${result.error}`)
           }
         } catch (fileError) {
           warnings.push(`Erreur fichier ${fileUrl}: ${fileError.message}`)
         }
-      }
-
-      if (productFiles.length > 0) {
-        // Associer les fichiers au produit
-        await product.related('files').saveMany(productFiles)
       }
     } catch (error) {
       console.error('Erreur lors du traitement des fichiers:', error)

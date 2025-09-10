@@ -186,7 +186,7 @@ export default class ProductsController {
 
       // Recharger le produit avec ses relations
       await product.load('categories')
-      await product.load('brand')
+      if (product.brandId) await product.load('brand')
       await product.load('files')
 
       return response.created({ data: product })
@@ -299,7 +299,7 @@ export default class ProductsController {
 
       // Recharger le produit avec ses relations
       await updatedProduct.load('categories')
-      await updatedProduct.load('brand')
+      if (product.brandId) await updatedProduct.load('brand')
       await updatedProduct.load('files')
 
       return response.ok({ data: updatedProduct })

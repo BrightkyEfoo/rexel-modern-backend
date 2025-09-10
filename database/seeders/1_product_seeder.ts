@@ -6,7 +6,7 @@ import MetadataService from '#services/metadata_service'
 
 export default class ProductSeeder extends BaseSeeder {
   async run() {
-    console.log('🌱 Création de 200 produits...')
+    console.log('🌱 Création de 3 produits d\'exemple...')
 
     // Récupérer les marques existantes
     const brands = await Brand.all()
@@ -93,7 +93,7 @@ export default class ProductSeeder extends BaseSeeder {
 
     let productCounter = 0
 
-    for (let i = 0; i < 200; i++) {
+    for (let i = 0; i < 3; i++) {
       // Sélectionner un type de produit aléatoire
       const productType = productTypes[Math.floor(Math.random() * productTypes.length)]
       const brand = brands[Math.floor(Math.random() * brands.length)]
@@ -170,12 +170,9 @@ export default class ProductSeeder extends BaseSeeder {
       await MetadataService.setMultipleMetadata(product.id, metadata)
 
       productCounter++
-      if (productCounter % 20 === 0) {
-        console.log(`✅ ${productCounter} produits créés...`)
-      }
     }
 
-    console.log(`🎉 ${productCounter} produits créés avec succès!`)
+    console.log(`🎉 ${productCounter} produits d'exemple créés avec succès!`)
   }
 
   private generateDescription(productName: string, brandName: string): string {

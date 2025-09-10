@@ -17,6 +17,7 @@ services:
       - db
       - redis
       - minio
+      - typesense
 
   # PostgreSQL Database
   db:
@@ -56,8 +57,21 @@ services:
     volumes:
       - redis_data:/data
 
+  # Typesense Search Engine
+  typesense:
+    image: typesense/typesense:27.0
+    ports:
+      - '${TYPESENSE_PORT:-8108}:8108'
+    environment:
+      - TYPESENSE_DATA_DIR=/data
+      - TYPESENSE_API_KEY=${TYPESENSE_API_KEY:-xyz}
+      - TYPESENSE_ENABLE_CORS=true
+    volumes:
+      - typesense_data:/data
+
 volumes:
   postgres_data:
   redis_data:
   minio_data:
+  typesense_data:
   uploads:

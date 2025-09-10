@@ -32,10 +32,30 @@ export default abstract class BaseRepository<T extends LucidModel> {
   }
 
   /**
+   * Nettoie les données en convertissant undefined en null pour les clés étrangères et champs optionnels
+   */
+  protected cleanDataForDatabase(data: any): any {
+    const cleaned: any = {}
+
+    for (const [key, value] of Object.entries(data)) {
+      if (value === undefined) {
+        cleaned[key] = null
+      } else if (typeof value === 'string' && value.trim() === '') {
+        cleaned[key] = null
+      } else {
+        cleaned[key] = value
+      }
+    }
+
+    return cleaned
+  }
+
+  /**
    * Crée un nouvel enregistrement
    */
   async create(data: Partial<ModelAttributes<InstanceType<T>>>): Promise<InstanceType<T>> {
-    return this.model.create(data)
+    const cleanedData = this.cleanDataForDatabase(data)
+    return this.model.create(cleanedData)
   }
 
   /**

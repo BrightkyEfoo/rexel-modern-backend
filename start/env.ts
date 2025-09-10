@@ -38,6 +38,13 @@ export default await Env.create(new URL('../', import.meta.url), {
   MINIO_REGION: Env.schema.string.optional(),
   MINIO_PUBLIC_ENDPOINT: Env.schema.string.optional(),
 
+  // Typesense configuration
+  TYPESENSE_HOST: Env.schema.string({ format: 'host' }),
+  TYPESENSE_PORT: Env.schema.number(),
+  TYPESENSE_PROTOCOL: Env.schema.string.optional(),
+  TYPESENSE_API_KEY: Env.schema.string(),
+  TYPESENSE_CONNECTION_TIMEOUT: Env.schema.number.optional(),
+
   /*
   |----------------------------------------------------------
   | Variables for configuring the mail package

@@ -9,6 +9,8 @@ volumes:
     driver: local
   redis_data:
     driver: local
+  typesense_data:
+    driver: local
   app_uploads:
     driver: local
 
@@ -79,6 +81,28 @@ services:
       timeout: 3s
       retries: 5
 
+  # Typesense Search Engine
+  typesense:
+    image: typesense/typesense:27.0
+    container_name: kesimarket-typesense-prod
+    restart: unless-stopped
+    environment:
+      TYPESENSE_DATA_DIR: /data
+      TYPESENSE_API_KEY: ${TYPESENSE_API_KEY}
+      TYPESENSE_ENABLE_CORS: true
+    volumes:
+      - typesense_data:/data
+    ports:
+      - '8108:8108'
+    networks:
+      - kesimarket-net
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:8108/health']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
   # Application Backend
   app:
     image: kesimarket-backend-prod:latest
@@ -90,6 +114,8 @@ services:
       minio:
         condition: service_healthy
       redis:
+        condition: service_healthy
+      typesense:
         condition: service_healthy
     environment:
       NODE_ENV: production
@@ -119,6 +145,11 @@ services:
       REDIS_HOST: redis
       REDIS_PORT: 6379
       REDIS_PASSWORD: ${REDIS_PASSWORD:-defaultpassword}
+
+      # Typesense
+      TYPESENSE_HOST: typesense
+      TYPESENSE_PORT: 8108
+      TYPESENSE_API_KEY: ${TYPESENSE_API_KEY}
 
       # Auth & Security
       JWT_SECRET: ${JWT_SECRET}

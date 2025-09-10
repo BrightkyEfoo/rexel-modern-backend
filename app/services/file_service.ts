@@ -159,74 +159,166 @@ export default class FileService {
   }
 
   /**
-   * Télécharge une image depuis une URL et la sauvegarde dans MinIO
+   * Télécharge un fichier depuis une URL et le sauvegarde dans MinIO (méthode générique)
    */
-  static async downloadAndSaveImage(
-    imageUrl: string,
+  static async downloadAndSaveFile(
+    fileUrl: string,
     bucket: string,
     fileableType?: string,
-    fileableId?: number
+    fileableId?: number,
+    isMainFile: boolean = false,
+    fileType: 'image' | 'file' = 'file'
   ): Promise<{ success: boolean; filename?: string; url?: string; error?: string }> {
     try {
       // Valider l'URL
-      const url = new URL(imageUrl)
-      
-      // Vérifier que c'est une image
-      const allowedExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp']
-      const urlPath = url.pathname.toLowerCase()
-      const hasValidExtension = allowedExtensions.some(ext => urlPath.endsWith(ext))
-      
-      if (!hasValidExtension) {
-        return { success: false, error: 'Extension de fichier non supportée' }
+      const url = new URL(fileUrl)
+
+      // Extensions autorisées selon le type
+      let allowedExtensions: string[] = []
+      console.log('first', fileType, allowedExtensions)
+      let maxSize = 50 * 1024 * 1024 // 50MB par défaut
+
+      if (fileType === 'image') {
+        allowedExtensions = [
+          '.jpg',
+          '.jpeg',
+          '.png',
+          '.gif',
+          '.webp',
+          '.svg',
+          '.bmp',
+          '.tiff',
+          '.ico',
+        ]
+        maxSize = 10 * 1024 * 1024 // 10MB pour les images
+      } else {
+        // Tous types de fichiers
+        allowedExtensions = [
+          // Images
+          '.jpg',
+          '.jpeg',
+          '.png',
+          '.gif',
+          '.webp',
+          '.svg',
+          '.bmp',
+          '.tiff',
+          '.ico',
+          // Documents
+          '.pdf',
+          '.doc',
+          '.docx',
+          '.xls',
+          '.xlsx',
+          '.ppt',
+          '.pptx',
+          '.txt',
+          '.rtf',
+          '.odt',
+          '.ods',
+          '.odp',
+          // Archives
+          '.zip',
+          '.rar',
+          '.7z',
+          '.tar',
+          '.gz',
+          '.bz2',
+          // Vidéos
+          '.mp4',
+          '.avi',
+          '.mov',
+          '.wmv',
+          '.flv',
+          '.webm',
+          '.mkv',
+          '.m4v',
+          // Audio
+          '.mp3',
+          '.wav',
+          '.flac',
+          '.aac',
+          '.ogg',
+          '.wma',
+          '.m4a',
+          // Autres
+          '.json',
+          '.xml',
+          '.csv',
+          '.sql',
+        ]
       }
 
-      // Télécharger l'image
-      const response = await fetch(imageUrl, {
+      // Vérifier l'extension (optionnel car certaines URLs n'ont pas d'extension)
+      const urlPath = url.pathname.toLowerCase()
+      // Validation optionnelle des extensions
+      console.log('second', urlPath, allowedExtensions)
+      // Télécharger le fichier
+      const response = await fetch(fileUrl, {
         method: 'GET',
         headers: {
-          'User-Agent': 'KesiMarket-Bot/1.0',
+          'User-Agent': 'RexelMarket-Bot/1.0',
+          'Accept': '*/*',
         },
-        // Timeout de 30 secondes
-        signal: AbortSignal.timeout(30000),
+        // Timeout de 60 secondes pour les gros fichiers
+        signal: AbortSignal.timeout(60000),
       })
 
       if (!response.ok) {
-        return { 
-          success: false, 
-          error: `Erreur HTTP ${response.status}: ${response.statusText}` 
+        return {
+          success: false,
+          error: `Erreur HTTP ${response.status}: ${response.statusText}`,
         }
       }
 
       // Vérifier le content-type
-      const contentType = response.headers.get('content-type')
-      if (!contentType?.startsWith('image/')) {
-        return { 
-          success: false, 
-          error: `Type de contenu invalide: ${contentType}` 
+      const contentType = response.headers.get('content-type') || 'application/octet-stream'
+
+      // Pour les images, vérifier que c'est bien une image
+      if (
+        fileType === 'image' &&
+        !contentType.startsWith('image/') &&
+        !contentType.includes('svg')
+      ) {
+        return {
+          success: false,
+          error: `Type de contenu invalide pour une image: ${contentType}`,
         }
       }
 
-      // Vérifier la taille (max 10MB)
+      // Vérifier la taille
       const contentLength = response.headers.get('content-length')
-      if (contentLength && parseInt(contentLength) > 10 * 1024 * 1024) {
-        return { 
-          success: false, 
-          error: 'Image trop volumineuse (max 10MB)' 
+      if (contentLength && Number.parseInt(contentLength, 10) > maxSize) {
+        const maxSizeMB = Math.round(maxSize / (1024 * 1024))
+        return {
+          success: false,
+          error: `Fichier trop volumineux (max ${maxSizeMB}MB)`,
         }
       }
 
-      // Obtenir le buffer de l'image
-      const imageBuffer = Buffer.from(await response.arrayBuffer())
+      // Obtenir le buffer du fichier
+      const fileBuffer = Buffer.from(await response.arrayBuffer())
+
+      // Vérifier la taille réelle après téléchargement
+      if (fileBuffer.length > maxSize) {
+        const maxSizeMB = Math.round(maxSize / (1024 * 1024))
+        return {
+          success: false,
+          error: `Fichier trop volumineux (max ${maxSizeMB}MB)`,
+        }
+      }
 
       // Générer un nom de fichier unique
-      const extension = this.getFileExtensionFromUrl(imageUrl) || '.jpg'
+      const extension =
+        this.getFileExtensionFromUrl(fileUrl, contentType) ||
+        (fileType === 'image' ? '.jpg' : '.bin')
       const filename = `${randomUUID()}${extension}`
       const path = `${bucket}/${filename}`
 
       // Upload vers MinIO
-      await this.minioClient.putObject(bucket, filename, imageBuffer, imageBuffer.length, {
+      await this.minioClient.putObject(bucket, filename, fileBuffer, fileBuffer.length, {
         'Content-Type': contentType,
-        'Content-Length': imageBuffer.length,
+        'Content-Length': fileBuffer.length,
       })
 
       // Construction de l'URL publique
@@ -236,56 +328,193 @@ export default class FileService {
       if (fileableType && fileableId) {
         await File.create({
           filename,
-          originalName: this.getFilenameFromUrl(imageUrl),
+          originalName: this.getFilenameFromUrl(fileUrl),
           mimeType: contentType,
-          size: imageBuffer.length,
+          size: fileBuffer.length,
           path,
           url: publicUrl,
           bucket,
           fileableType,
           fileableId,
+          isMain: isMainFile,
         })
       }
 
-      return { 
-        success: true, 
-        filename, 
-        url: publicUrl 
+      return {
+        success: true,
+        filename,
+        url: publicUrl,
       }
-
     } catch (error) {
-      console.error('Erreur lors du téléchargement de l\'image:', error)
-      
+      console.error('Erreur lors du téléchargement du fichier:', error)
+
       if (error.name === 'TimeoutError') {
-        return { success: false, error: 'Timeout lors du téléchargement' }
-      }
-      
-      if (error.name === 'TypeError' && error.message.includes('fetch')) {
-        return { success: false, error: 'URL inaccessible' }
+        return { success: false, error: 'Timeout lors du téléchargement (60s)' }
       }
 
-      return { 
-        success: false, 
-        error: error.message || 'Erreur inconnue lors du téléchargement' 
+      if (error.name === 'TypeError' && error.message.includes('fetch')) {
+        return { success: false, error: 'URL inaccessible ou invalide' }
+      }
+
+      return {
+        success: false,
+        error: error.message || 'Erreur inconnue lors du téléchargement',
       }
     }
   }
 
   /**
-   * Extrait l'extension de fichier depuis une URL
+   * Télécharge une image depuis une URL et la sauvegarde dans MinIO
    */
-  private static getFileExtensionFromUrl(url: string): string | null {
+  static async downloadAndSaveImage(
+    imageUrl: string,
+    bucket: string,
+    fileableType?: string,
+    fileableId?: number,
+    isMainImage: boolean = false
+  ): Promise<{ success: boolean; filename?: string; url?: string; error?: string }> {
+    return this.downloadAndSaveFile(
+      imageUrl,
+      bucket,
+      fileableType,
+      fileableId,
+      isMainImage,
+      'image'
+    )
+  }
+
+  /**
+   * Extrait l'extension de fichier depuis une URL et/ou content-type
+   */
+  private static getFileExtensionFromUrl(url: string, contentType?: string): string | null {
     try {
+      // D'abord essayer d'extraire depuis l'URL
       const urlObj = new URL(url)
       const pathname = urlObj.pathname
       const lastDot = pathname.lastIndexOf('.')
-      
-      if (lastDot === -1) return null
-      
-      const extension = pathname.substring(lastDot).toLowerCase()
-      const allowedExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp']
-      
-      return allowedExtensions.includes(extension) ? extension : null
+
+      if (lastDot !== -1) {
+        const extension = pathname.substring(lastDot).toLowerCase()
+        // Liste exhaustive des extensions supportées
+        const allowedExtensions = [
+          // Images
+          '.jpg',
+          '.jpeg',
+          '.png',
+          '.gif',
+          '.webp',
+          '.svg',
+          '.bmp',
+          '.tiff',
+          '.ico',
+          // Documents
+          '.pdf',
+          '.doc',
+          '.docx',
+          '.xls',
+          '.xlsx',
+          '.ppt',
+          '.pptx',
+          '.txt',
+          '.rtf',
+          '.odt',
+          '.ods',
+          '.odp',
+          // Archives
+          '.zip',
+          '.rar',
+          '.7z',
+          '.tar',
+          '.gz',
+          '.bz2',
+          // Vidéos
+          '.mp4',
+          '.avi',
+          '.mov',
+          '.wmv',
+          '.flv',
+          '.webm',
+          '.mkv',
+          '.m4v',
+          // Audio
+          '.mp3',
+          '.wav',
+          '.flac',
+          '.aac',
+          '.ogg',
+          '.wma',
+          '.m4a',
+          // Autres
+          '.json',
+          '.xml',
+          '.csv',
+          '.sql',
+        ]
+
+        if (allowedExtensions.includes(extension)) {
+          return extension
+        }
+      }
+
+      // Si pas d'extension dans l'URL, utiliser le content-type
+      if (contentType) {
+        const mimeToExtension: { [key: string]: string } = {
+          // Images
+          'image/jpeg': '.jpg',
+          'image/jpg': '.jpg',
+          'image/png': '.png',
+          'image/gif': '.gif',
+          'image/webp': '.webp',
+          'image/svg+xml': '.svg',
+          'image/bmp': '.bmp',
+          'image/tiff': '.tiff',
+          'image/x-icon': '.ico',
+          // Documents
+          'application/pdf': '.pdf',
+          'application/msword': '.doc',
+          'application/vnd.openxmlformats-officedocument.wordprocessingml.document': '.docx',
+          'application/vnd.ms-excel': '.xls',
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': '.xlsx',
+          'application/vnd.ms-powerpoint': '.ppt',
+          'application/vnd.openxmlformats-officedocument.presentationml.presentation': '.pptx',
+          'text/plain': '.txt',
+          'text/rtf': '.rtf',
+          // Archives
+          'application/zip': '.zip',
+          'application/x-rar-compressed': '.rar',
+          'application/x-7z-compressed': '.7z',
+          'application/x-tar': '.tar',
+          'application/gzip': '.gz',
+          'application/x-bzip2': '.bz2',
+          // Vidéos
+          'video/mp4': '.mp4',
+          'video/x-msvideo': '.avi',
+          'video/quicktime': '.mov',
+          'video/x-ms-wmv': '.wmv',
+          'video/x-flv': '.flv',
+          'video/webm': '.webm',
+          'video/x-matroska': '.mkv',
+          'video/x-m4v': '.m4v',
+          // Audio
+          'audio/mpeg': '.mp3',
+          'audio/wav': '.wav',
+          'audio/flac': '.flac',
+          'audio/aac': '.aac',
+          'audio/ogg': '.ogg',
+          'audio/x-ms-wma': '.wma',
+          'audio/mp4': '.m4a',
+          // Autres
+          'application/json': '.json',
+          'application/xml': '.xml',
+          'text/xml': '.xml',
+          'text/csv': '.csv',
+          'application/sql': '.sql',
+        }
+
+        return mimeToExtension[contentType.toLowerCase()] || null
+      }
+
+      return null
     } catch {
       return null
     }
@@ -299,7 +528,7 @@ export default class FileService {
       const urlObj = new URL(url)
       const pathname = urlObj.pathname
       const filename = pathname.substring(pathname.lastIndexOf('/') + 1)
-      
+
       return filename || 'downloaded-image'
     } catch {
       return 'downloaded-image'

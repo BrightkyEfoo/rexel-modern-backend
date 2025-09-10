@@ -1,11 +1,12 @@
 import { DateTime } from 'luxon'
-import { BaseModel, column, belongsTo, hasMany, manyToMany, computed } from '@adonisjs/lucid/orm'
+import { BaseModel, column, belongsTo, hasMany, manyToMany, computed, afterCreate, afterUpdate, afterDelete } from '@adonisjs/lucid/orm'
 import type { BelongsTo, HasMany, ManyToMany } from '@adonisjs/lucid/types/relations'
 import Category from './category.js'
 import Brand from './brand.js'
 import File from './file.js'
 import ProductMetadata from './product_metadata.js'
 import Review from './review.js'
+import app from '@adonisjs/core/services/app'
 
 export default class Product extends BaseModel {
   @column({ isPrimary: true })
@@ -104,5 +105,44 @@ export default class Product extends BaseModel {
 
     // Si aucune image principale, prendre la première
     return this.files[0]?.url || null
+  }
+
+  /**
+   * Hook après création - Synchronise avec Typesense
+   */
+  @afterCreate()
+  static async syncAfterCreate(product: Product) {
+    try {
+      const syncService = (await app.container.make('TypesenseSyncService')) as any
+      await syncService.syncProduct(product.id, 'create')
+    } catch (error) {
+      console.error('Erreur synchronisation Typesense après création produit:', error)
+    }
+  }
+
+  /**
+   * Hook après mise à jour - Synchronise avec Typesense
+   */
+  @afterUpdate()
+  static async syncAfterUpdate(product: Product) {
+    try {
+      const syncService = (await app.container.make('TypesenseSyncService')) as any
+      await syncService.syncProduct(product.id, 'update')
+    } catch (error) {
+      console.error('Erreur synchronisation Typesense après mise à jour produit:', error)
+    }
+  }
+
+  /**
+   * Hook après suppression - Supprime de Typesense
+   */
+  @afterDelete()
+  static async syncAfterDelete(product: Product) {
+    try {
+      const syncService = (await app.container.make('TypesenseSyncService')) as any
+      await syncService.syncProduct(product.id, 'delete')
+    } catch (error) {
+      console.error('Erreur synchronisation Typesense après suppression produit:', error)
+    }
   }
 }

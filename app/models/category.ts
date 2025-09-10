@@ -1,8 +1,9 @@
 import { DateTime } from 'luxon'
-import { BaseModel, column, hasMany, belongsTo, manyToMany, computed } from '@adonisjs/lucid/orm'
+import { BaseModel, column, hasMany, belongsTo, manyToMany, computed, afterCreate, afterUpdate, afterDelete } from '@adonisjs/lucid/orm'
 import type { HasMany, BelongsTo, ManyToMany } from '@adonisjs/lucid/types/relations'
 import Product from './product.js'
 import File from './file.js'
+import app from '@adonisjs/core/services/app'
 
 export default class Category extends BaseModel {
   @column({ isPrimary: true })
@@ -72,6 +73,15 @@ export default class Category extends BaseModel {
 
     // Si aucune image principale, prendre la première
     return this.files[0]?.url || null
+  }
+
+  // Computed property pour le nombre de produits
+  @computed()
+  public get productCount() {
+    if (!this.products || !Array.isArray(this.products)) {
+      return 0
+    }
+    return this.products.length
   }
 
   /**
@@ -156,5 +166,46 @@ export default class Category extends BaseModel {
    */
   isRoot(): boolean {
     return this.parentId === null
+  }
+
+  /**
+   * Hook après création - Synchronise avec Typesense
+   */
+  @afterCreate()
+  static async syncAfterCreate(category: Category) {
+    try {
+      const syncService = (await app.container.make('TypesenseSyncService')) as any
+      await syncService.syncCategory(category.id, 'create')
+    } catch (error) {
+      console.error('Erreur synchronisation Typesense après création catégorie:', error)
+    }
+  }
+
+  /**
+   * Hook après mise à jour - Synchronise avec Typesense
+   */
+  @afterUpdate()
+  static async syncAfterUpdate(category: Category) {
+    try {
+      const syncService = (await app.container.make('TypesenseSyncService')) as any
+      await syncService.syncCategory(category.id, 'update')
+      // Resynchroniser les produits de cette catégorie car ils peuvent avoir changé
+      await syncService.resyncCategoryProducts(category.id)
+    } catch (error) {
+      console.error('Erreur synchronisation Typesense après mise à jour catégorie:', error)
+    }
+  }
+
+  /**
+   * Hook après suppression - Supprime de Typesense
+   */
+  @afterDelete()
+  static async syncAfterDelete(category: Category) {
+    try {
+      const syncService = (await app.container.make('TypesenseSyncService')) as any
+      await syncService.syncCategory(category.id, 'delete')
+    } catch (error) {
+      console.error('Erreur synchronisation Typesense après suppression catégorie:', error)
+    }
   }
 }

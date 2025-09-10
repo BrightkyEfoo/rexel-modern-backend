@@ -35,8 +35,22 @@ export function registerSecuredProductRoutes() {
 
       // Routes d'importation en masse
       router.post('/products/bulk-import', '#controllers/products_bulk_controller.bulkImport')
-      router.get('/products/bulk-import/example', '#controllers/products_bulk_controller.getImportExample')
-      router.post('/products/bulk-import/validate-csv', '#controllers/products_bulk_controller.validateCsv')
+      router.post(
+        '/products/bulk-import/start',
+        '#controllers/products_bulk_controller.startBulkImport'
+      )
+      router.get(
+        '/products/bulk-import/progress/:importId',
+        '#controllers/products_bulk_controller.getImportProgress'
+      )
+      router.get(
+        '/products/bulk-import/example',
+        '#controllers/products_bulk_controller.getImportExample'
+      )
+      router.post(
+        '/products/bulk-import/validate-csv',
+        '#controllers/products_bulk_controller.validateCsv'
+      )
     })
     .prefix('/api/v1/secured')
     .middleware([middleware.auth()])
