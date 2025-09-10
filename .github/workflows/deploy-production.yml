@@ -402,19 +402,18 @@ jobs:
             MINIO_ROOT_USER=${{ secrets.MINIO_ROOT_USER }}
             MINIO_ROOT_PASSWORD=${{ secrets.MINIO_ROOT_PASSWORD }}
             MINIO_PUBLIC_ENDPOINT=${{ secrets.MINIO_PUBLIC_ENDPOINT }}
+            # Redis Configuration (optional)
+            REDIS_HOST=redis
+            REDIS_PORT=6379
+            REDIS_PASSWORD=${{ secrets.REDIS_PASSWORD }}
             
-          # Redis Configuration (optional)
-          REDIS_HOST=redis
-          REDIS_PORT=6379
-          REDIS_PASSWORD=${{ secrets.REDIS_PASSWORD }}
-          
-          # Typesense Configuration
-          TYPESENSE_HOST=typesense
-          TYPESENSE_PORT=8108
-          TYPESENSE_API_KEY=${{ secrets.TYPESENSE_API_KEY }}
-          
-          # JWT Configuration
-          JWT_SECRET=${{ secrets.JWT_SECRET }}
+            # Typesense Configuration
+            TYPESENSE_HOST=typesense
+            TYPESENSE_PORT=8108
+            TYPESENSE_API_KEY=${{ secrets.TYPESENSE_API_KEY }}
+            
+            # JWT Configuration
+            JWT_SECRET=${{ secrets.JWT_SECRET }}
             
             # CORS Configuration
             CORS_ORIGINS=${{ secrets.CORS_ORIGINS }}
