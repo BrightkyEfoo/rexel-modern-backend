@@ -19,6 +19,11 @@ export function registerSecuredCartRoutes() {
     .group(() => {
       // Route pour fusionner les paniers lors de la connexion (authentifiée)
       router.post('/cart/merge', '#controllers/carts_controller.merge')
+      router.get('/cart', '#controllers/carts_controller.show')
+      router.post('/cart/items', '#controllers/carts_controller.addItem')
+      router.put('/cart/items/:itemId', '#controllers/carts_controller.updateItem')
+      router.delete('/cart/items/:itemId', '#controllers/carts_controller.removeItem')
+      router.delete('/cart', '#controllers/carts_controller.clear')
     })
     .prefix('/api/v1/secured')
     .use(middleware.auth())

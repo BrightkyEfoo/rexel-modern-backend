@@ -6,7 +6,7 @@ import MetadataService from '#services/metadata_service'
 
 export default class ProductSeeder extends BaseSeeder {
   async run() {
-    console.log('🌱 Création de 3 produits d\'exemple...')
+    console.log("🌱 Création de 3 produits d'exemple...")
 
     // Récupérer les marques existantes
     const brands = await Brand.all()

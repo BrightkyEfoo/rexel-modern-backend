@@ -1,5 +1,15 @@
 import { DateTime } from 'luxon'
-import { BaseModel, column, belongsTo, hasMany, manyToMany, computed, afterCreate, afterUpdate, afterDelete } from '@adonisjs/lucid/orm'
+import {
+  BaseModel,
+  column,
+  belongsTo,
+  hasMany,
+  manyToMany,
+  computed,
+  afterCreate,
+  afterUpdate,
+  afterDelete,
+} from '@adonisjs/lucid/orm'
 import type { BelongsTo, HasMany, ManyToMany } from '@adonisjs/lucid/types/relations'
 import Category from './category.js'
 import Brand from './brand.js'
@@ -39,8 +49,10 @@ export default class Product extends BaseModel {
   @column({ columnName: 'manage_stock' })
   declare manageStock: boolean
 
-  @column({ columnName: 'in_stock' })
-  declare inStock: boolean
+  @computed()
+  get inStock() {
+    return this.stockQuantity > 0
+  }
 
   @column({ columnName: 'is_featured' })
   declare isFeatured: boolean

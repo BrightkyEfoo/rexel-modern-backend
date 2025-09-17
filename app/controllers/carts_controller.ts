@@ -69,6 +69,9 @@ export default class CartsController {
    */
   async addItem({ auth, request, response }: HttpContext) {
     const user = await auth.user
+
+    const { userId: requestUserId } = request.only(['userId'])
+
     const sessionId = request.header('x-session-id')
     const payload = await request.validateUsing(createCartItemValidator)
 
@@ -121,6 +124,11 @@ export default class CartsController {
         productId: payload.productId,
         quantity: payload.quantity,
       })
+    }
+
+    if (user || requestUserId) {
+      cart.merge({ userId: user?.id || requestUserId })
+      await cart.save()
     }
 
     // Recharger le panier avec les items triés
@@ -289,6 +297,11 @@ export default class CartsController {
       cart = await Cart.query().where('sessionId', sessionId).whereNull('userId').first()
     }
 
+    if (user) {
+      cart?.merge({ userId: user.id })
+      await cart?.save()
+    }
+
     if (cart) {
       // Supprimer tous les items du panier
       await CartItem.query().where('cartId', cart.id).delete()
@@ -356,6 +369,11 @@ export default class CartsController {
 
     // Supprimer le panier de session
     await sessionCart.delete()
+
+    if (user) {
+      userCart.merge({ userId: user.id })
+      await userCart.save()
+    }
 
     // Recharger le panier utilisateur avec les items triés
     await userCart.load('items', (itemQuery) => {

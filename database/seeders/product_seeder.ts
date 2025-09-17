@@ -42,8 +42,6 @@ export default class ProductSeeder extends BaseSeeder {
           conditionnement: 'Couronne 100m',
           garantie: '2 ans',
         },
-        weight: 0.28,
-        dimensions: '100m x Ø4.2mm',
       },
       {
         name: 'Disjoncteur C16 Unipolaire+Neutre',
@@ -71,8 +69,6 @@ export default class ProductSeeder extends BaseSeeder {
           origine: 'France',
           garantie: '3 ans',
         },
-        weight: 0.12,
-        dimensions: '36mm x 90mm x 65mm',
       },
       {
         name: 'Spot LED Encastrable 12W 4000K',
@@ -102,8 +98,6 @@ export default class ProductSeeder extends BaseSeeder {
           origine: 'Allemagne',
           garantie: '5 ans',
         },
-        weight: 0.35,
-        dimensions: 'Ø100mm x 25mm',
       },
     ]
 

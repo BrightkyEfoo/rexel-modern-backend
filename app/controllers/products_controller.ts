@@ -728,4 +728,160 @@ export default class ProductsController {
       })
     }
   }
+
+  /**
+   * Récupère les produits d'une marque par slug avec filtres
+   */
+  async byBrandSlug({ params, request, response }: HttpContext) {
+    try {
+      const brandSlug = params.slug
+      const page = request.input('page', 1)
+      const perPage = request.input('per_page', 20)
+      const search = request.input('search')
+      const sortBy = request.input('sort_by', 'created_at')
+      const sortOrder = request.input('sort_order', 'desc')
+      const categoryId = request.input('category_id')
+      const minPrice = request.input('min_price')
+      const maxPrice = request.input('max_price')
+      const isFeatured = request.input('is_featured')
+      const isActive = request.input('is_active', true)
+      const inStock = request.input('in_stock')
+
+      // Récupérer les filtres de métadonnées
+      const metadataFilters: Record<string, any> = {}
+      const metadataKeys = await this.productRepository.getAvailableMetadataKeys()
+
+      for (const key of metadataKeys) {
+        const value = request.input(key)
+        if (value !== undefined && value !== null && value !== '') {
+          if (typeof value === 'string' && value.includes(',')) {
+            metadataFilters[key] = value.split(',').map((v) => v.trim())
+          } else {
+            metadataFilters[key] = value
+          }
+        }
+      }
+
+      const filters = {
+        search,
+        categoryId,
+        minPrice: minPrice ? Number.parseFloat(minPrice) : undefined,
+        maxPrice: maxPrice ? Number.parseFloat(maxPrice) : undefined,
+        isFeatured: isFeatured === 'true' ? true : isFeatured === 'false' ? false : undefined,
+        isActive: isActive === 'true' ? true : isActive === 'false' ? false : true,
+        inStock: inStock === 'true' ? true : inStock === 'false' ? false : undefined,
+        brandSlug,
+        ...metadataFilters,
+      }
+
+      const paginatedProducts = await this.productRepository.findByBrandSlugWithFilters(
+        brandSlug,
+        page,
+        perPage,
+        sortBy,
+        sortOrder,
+        filters
+      )
+
+      return response.ok({
+        data: paginatedProducts.all(),
+        meta: {
+          total: paginatedProducts.total,
+          per_page: paginatedProducts.perPage,
+          current_page: paginatedProducts.currentPage,
+          last_page: paginatedProducts.lastPage,
+        },
+        message: 'Products by brand retrieved successfully',
+        status: 200,
+        timestamp: new Date().toISOString(),
+      })
+    } catch (error) {
+      console.error('Error fetching products by brand slug:', error)
+      return response.internalServerError({
+        message: 'Error fetching products by brand slug',
+        status: 500,
+        timestamp: new Date().toISOString(),
+      })
+    }
+  }
+
+  /**
+   * Récupère les produits d'une catégorie par slug avec filtres
+   */
+  async byCategorySlug({ params, request, response }: HttpContext) {
+    try {
+      const categorySlug = params.slug
+      const page = request.input('page', 1)
+      const perPage = request.input('per_page', 20)
+      const search = request.input('search')
+      const sortBy = request.input('sort_by', 'created_at')
+      const sortOrder = request.input('sort_order', 'desc')
+      const brandId = request.input('brand_id')
+      const brandIds = request.input('brand_ids')
+      const minPrice = request.input('min_price')
+      const maxPrice = request.input('max_price')
+      const isFeatured = request.input('is_featured')
+      const isActive = request.input('is_active', true)
+      const inStock = request.input('in_stock')
+
+      // Récupérer les filtres de métadonnées
+      const metadataFilters: Record<string, any> = {}
+      const metadataKeys = await this.productRepository.getAvailableMetadataKeys()
+
+      for (const key of metadataKeys) {
+        const value = request.input(key)
+        if (value !== undefined && value !== null && value !== '') {
+          if (typeof value === 'string' && value.includes(',')) {
+            metadataFilters[key] = value.split(',').map((v) => v.trim())
+          } else {
+            metadataFilters[key] = value
+          }
+        }
+      }
+
+      const filters = {
+        search,
+        brandId,
+        brandIds: brandIds
+          ? brandIds.split(',').map((id: string) => Number.parseInt(id))
+          : undefined,
+        minPrice: minPrice ? Number.parseFloat(minPrice) : undefined,
+        maxPrice: maxPrice ? Number.parseFloat(maxPrice) : undefined,
+        isFeatured: isFeatured === 'true' ? true : isFeatured === 'false' ? false : undefined,
+        isActive: isActive === 'true' ? true : isActive === 'false' ? false : true,
+        inStock: inStock === 'true' ? true : inStock === 'false' ? false : undefined,
+        categorySlug,
+        ...metadataFilters,
+      }
+
+      const paginatedProducts = await this.productRepository.findByCategorySlugWithFilters(
+        categorySlug,
+        page,
+        perPage,
+        sortBy,
+        sortOrder,
+        filters
+      )
+
+      return response.ok({
+        data: paginatedProducts.all(),
+        meta: {
+          total: paginatedProducts.total,
+          per_page: paginatedProducts.perPage,
+          current_page: paginatedProducts.currentPage,
+          last_page: paginatedProducts.lastPage,
+        },
+        message: 'Products by category retrieved successfully',
+        status: 200,
+        timestamp: new Date().toISOString(),
+      })
+    } catch (error) {
+      console.error('Error fetching products by category slug:', error)
+      return response.internalServerError({
+        message: 'Error fetching products by category slug',
+        status: 500,
+        timestamp: new Date().toISOString(),
+      })
+    }
+  }
 }

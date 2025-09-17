@@ -368,4 +368,170 @@ export default class ProductRepository extends BaseRepository<typeof Product> {
       return []
     }
   }
+
+  /**
+   * Récupère les produits d'une marque par slug avec filtres et pagination
+   */
+  async findByBrandSlugWithFilters(
+    brandSlug: string,
+    page: number = 1,
+    perPage: number = 20,
+    sortBy: string = 'created_at',
+    sortOrder: 'asc' | 'desc' = 'desc',
+    filters: any = {}
+  ) {
+    const query = Product.query()
+      .preload('categories')
+      .preload('brand')
+      .preload('files')
+      .preload('metadata')
+      .whereHas('brand', (brandQuery) => {
+        brandQuery.where('slug', brandSlug)
+      })
+
+    // Application des filtres
+    this.applyFilters(query, filters)
+
+    // Application du tri
+    this.applySorting(query, sortBy, sortOrder)
+
+    return query.paginate(page, perPage)
+  }
+
+  /**
+   * Récupère les produits d'une catégorie par slug avec filtres et pagination
+   */
+  async findByCategorySlugWithFilters(
+    categorySlug: string,
+    page: number = 1,
+    perPage: number = 20,
+    sortBy: string = 'created_at',
+    sortOrder: 'asc' | 'desc' = 'desc',
+    filters: any = {}
+  ) {
+    const query = Product.query()
+      .preload('categories')
+      .preload('brand')
+      .preload('files')
+      .preload('metadata')
+      .whereHas('categories', (categoryQuery) => {
+        categoryQuery.where('slug', categorySlug)
+      })
+
+    // Application des filtres
+    this.applyFilters(query, filters)
+
+    // Application du tri
+    this.applySorting(query, sortBy, sortOrder)
+
+    return query.paginate(page, perPage)
+  }
+
+  /**
+   * Applique les filtres à une requête
+   */
+  private applyFilters(query: any, filters: any) {
+    if (filters.search) {
+      query.where((builder: any) => {
+        builder
+          .where('name', 'ilike', `%${filters.search}%`)
+          .orWhere('description', 'ilike', `%${filters.search}%`)
+          .orWhere('short_description', 'ilike', `%${filters.search}%`)
+          .orWhere('sku', 'ilike', `%${filters.search}%`)
+      })
+    }
+
+    if (filters.categoryId) {
+      query.whereHas('categories', (categoryQuery: any) => {
+        categoryQuery.where('categories.id', filters.categoryId)
+      })
+    }
+
+    if (filters.brandId) {
+      query.where('brand_id', filters.brandId)
+    }
+
+    if (filters.brandIds && Array.isArray(filters.brandIds)) {
+      query.whereIn('brand_id', filters.brandIds)
+    }
+
+    if (filters.minPrice !== undefined) {
+      query.where('price', '>=', filters.minPrice)
+    }
+
+    if (filters.maxPrice !== undefined) {
+      query.where('price', '<=', filters.maxPrice)
+    }
+
+    if (filters.isFeatured !== undefined) {
+      query.where('is_featured', filters.isFeatured)
+    }
+
+    if (filters.isActive !== undefined) {
+      query.where('is_active', filters.isActive)
+    }
+
+    if (filters.inStock !== undefined) {
+      query.where('in_stock', filters.inStock)
+    }
+
+    // Filtres de métadonnées
+    Object.entries(filters).forEach(([key, value]) => {
+      if (
+        ![
+          'search',
+          'categoryId',
+          'brandId',
+          'brandIds',
+          'minPrice',
+          'maxPrice',
+          'isFeatured',
+          'isActive',
+          'inStock',
+          'brandSlug',
+          'categorySlug',
+        ].includes(key) &&
+        value !== undefined &&
+        value !== null &&
+        value !== ''
+      ) {
+        query.whereHas('metadata', (metaQuery: any) => {
+          metaQuery.where('key', key)
+          if (Array.isArray(value)) {
+            metaQuery.whereIn('value', value)
+          } else {
+            metaQuery.where('value', 'ilike', `%${value}%`)
+          }
+        })
+      }
+    })
+  }
+
+  /**
+   * Applique le tri à une requête
+   */
+  private applySorting(query: any, sortBy: string, sortOrder: 'asc' | 'desc') {
+    const allowedSortFields = [
+      'name',
+      'price',
+      'created_at',
+      'updated_at',
+      'is_featured',
+      'in_stock',
+      'popularity',
+    ]
+
+    if (allowedSortFields.includes(sortBy)) {
+      if (sortBy === 'popularity') {
+        // Tri par popularité (featured en premier, puis par date)
+        query.orderBy('is_featured', 'desc')
+        query.orderBy('created_at', 'desc')
+      } else {
+        query.orderBy(sortBy, sortOrder)
+      }
+    } else {
+      // Tri par défaut
+      query.orderBy('created_at', sortOrder)
+    }
+  }
 }

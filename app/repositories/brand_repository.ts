@@ -116,6 +116,8 @@ export default class BrandRepository extends BaseRepository<typeof Brand> {
       query.orderBy('name', 'asc')
     }
 
+    query.preload('products')
+
     return query.paginate(page, perPage)
   }
 }

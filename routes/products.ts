@@ -14,7 +14,9 @@ export function registerPublicProductRoutes() {
         '#controllers/products_controller.getFilterValues'
       )
       router.get('/products/category/:slug', '#controllers/products_controller.getByCategory')
+      router.get('/products/category-slug/:slug', '#controllers/products_controller.byCategorySlug')
       router.get('/products/brand/:id', '#controllers/products_controller.getByBrand')
+      router.get('/products/brand-slug/:slug', '#controllers/products_controller.byBrandSlug')
       router.get('/products/:slug', '#controllers/products_controller.show')
       router.get('/products/:slug/similar', '#controllers/products_controller.similar')
     })

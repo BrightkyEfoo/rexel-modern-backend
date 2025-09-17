@@ -19,11 +19,22 @@ import { registerPublicCartRoutes, registerSecuredCartRoutes } from '../routes/c
 import { registerPublicAuthRoutes, registerSecuredAuthRoutes } from '../routes/auth.js'
 import { registerSecuredAddressRoutes } from '../routes/addresses.js'
 import { registerPublicReviewRoutes, registerSecuredReviewRoutes } from '../routes/reviews.js'
+import {
+  registerPublicPickupPointRoutes,
+  registerSecuredPickupPointRoutes,
+} from '../routes/pickup_points.js'
+import { registerPublicServiceRoutes, registerSecuredServiceRoutes } from '../routes/services.js'
+import {
+  registerPublicFormationRoutes,
+  registerSecuredFormationRoutes,
+} from '../routes/formations.js'
+import { registerPublicQuoteRoutes, registerSecuredQuoteRoutes } from '../routes/service_quotes.js'
 import { registerUtilRoutes } from '../routes/utils.js'
 import '../routes/favorites.js'
 import '../routes/upload.js'
 import '../routes/search.js'
 import router from '@adonisjs/core/services/router'
+import { registerSecuredOrderRoutes } from '../routes/orders.js'
 
 // Enregistrement des routes publiques
 registerPublicProductRoutes()
@@ -33,6 +44,10 @@ registerPublicFileRoutes()
 registerPublicCartRoutes()
 registerPublicAuthRoutes()
 registerPublicReviewRoutes()
+registerPublicPickupPointRoutes()
+registerPublicServiceRoutes()
+registerPublicFormationRoutes()
+registerPublicQuoteRoutes()
 
 // Enregistrement des routes sécurisées
 registerSecuredProductRoutes()
@@ -43,6 +58,11 @@ registerSecuredCartRoutes()
 registerSecuredAuthRoutes()
 registerSecuredAddressRoutes()
 registerSecuredReviewRoutes()
+registerSecuredPickupPointRoutes()
+registerSecuredServiceRoutes()
+registerSecuredFormationRoutes()
+registerSecuredQuoteRoutes()
+registerSecuredOrderRoutes()
 
 // Enregistrement des routes utilitaires
 registerUtilRoutes()
