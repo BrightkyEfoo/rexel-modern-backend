@@ -23,23 +23,18 @@ import {
   registerPublicPickupPointRoutes,
   registerSecuredPickupPointRoutes,
 } from '../routes/pickup_points.js'
-import {
-  registerPublicServiceRoutes,
-  registerSecuredServiceRoutes,
-} from '../routes/services.js'
+import { registerPublicServiceRoutes, registerSecuredServiceRoutes } from '../routes/services.js'
 import {
   registerPublicFormationRoutes,
   registerSecuredFormationRoutes,
 } from '../routes/formations.js'
-import {
-  registerPublicQuoteRoutes,
-  registerSecuredQuoteRoutes,
-} from '../routes/service_quotes.js'
+import { registerPublicQuoteRoutes, registerSecuredQuoteRoutes } from '../routes/service_quotes.js'
+import { registerSecuredOrderRoutes } from '../routes/orders.js'
+import { registerPublicContactRoutes, registerSecuredContactRoutes } from '../routes/contact.js'
 import { registerUtilRoutes } from '../routes/utils.js'
 import '../routes/favorites.js'
 import '../routes/upload.js'
 import '../routes/search.js'
-import '../routes/orders.js'
 import router from '@adonisjs/core/services/router'
 
 // Enregistrement des routes publiques
@@ -54,6 +49,7 @@ registerPublicPickupPointRoutes()
 registerPublicServiceRoutes()
 registerPublicFormationRoutes()
 registerPublicQuoteRoutes()
+registerPublicContactRoutes()
 
 // Enregistrement des routes sécurisées
 registerSecuredProductRoutes()
@@ -68,6 +64,8 @@ registerSecuredPickupPointRoutes()
 registerSecuredServiceRoutes()
 registerSecuredFormationRoutes()
 registerSecuredQuoteRoutes()
+registerSecuredOrderRoutes()
+registerSecuredContactRoutes()
 
 // Enregistrement des routes utilitaires
 registerUtilRoutes()

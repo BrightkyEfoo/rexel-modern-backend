@@ -145,7 +145,6 @@ export default class ProductSeeder extends BaseSeeder {
         salePrice,
         stockQuantity: Math.floor(Math.random() * 500) + 10,
         manageStock: true,
-        inStock: Math.random() > 0.1, // 90% en stock
         isFeatured: Math.random() > 0.8, // 20% mis en avant
         isActive: true,
         brandId: brand.id,

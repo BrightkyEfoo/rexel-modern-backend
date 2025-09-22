@@ -3,6 +3,7 @@ import { BaseModel, column, belongsTo, hasMany } from '@adonisjs/lucid/orm'
 import type { BelongsTo, HasMany } from '@adonisjs/lucid/types/relations'
 import User from './user.js'
 import OrderItem from './order_item.js'
+import OrderIssue from './order_issue.js'
 
 export type OrderStatus =
   | 'pending'
@@ -36,6 +37,9 @@ export default class Order extends BaseModel {
 
   @column({ columnName: 'billing_address_id' })
   declare billingAddressId: string | null
+
+  @column({ columnName: 'invoice_signature' })
+  declare invoiceSignature: string | null
 
   @column({ columnName: 'delivery_method' })
   declare deliveryMethod: DeliveryMethod
@@ -88,11 +92,21 @@ export default class Order extends BaseModel {
   @hasMany(() => OrderItem)
   declare items: HasMany<typeof OrderItem>
 
+  @hasMany(() => OrderIssue)
+  declare issues: HasMany<typeof OrderIssue>
+
   // Méthodes utilitaires
   public static generateOrderNumber(): string {
     const timestamp = Date.now().toString().slice(-8)
     const random = Math.random().toString(36).substring(2, 6).toUpperCase()
     return `ORD-${timestamp}-${random}`
+  }
+
+  /**
+   * Vérifier si la commande peut être annulée
+   */
+  get isCancellable(): boolean {
+    return this.status === 'pending' || this.status === 'confirmed'
   }
 
   public canBeCancelled(): boolean {
@@ -103,61 +117,3 @@ export default class Order extends BaseModel {
     return this.status === 'pending'
   }
 }
-// declare id: number
-
-// @column({ columnName: 'user_id' })
-// declare userId: number
-
-// @column({ columnName: 'order_number' })
-// declare orderNumber: string
-
-// @column()
-// declare status: OrderStatus
-
-// @column({ columnName: 'shipping_address_id' })
-// declare shippingAddressId: string | null
-
-// @column({ columnName: 'billing_address_id' })
-// declare billingAddressId: string | null
-
-// @column({ columnName: 'delivery_method' })
-// declare deliveryMethod: DeliveryMethod
-
-// @column({ columnName: 'payment_method' })
-// declare paymentMethod: PaymentMethod
-
-// @column({ columnName: 'payment_status' })
-// declare paymentStatus: PaymentStatus
-
-// @column()
-// declare subtotal: number
-
-// @column({ columnName: 'shipping_cost' })
-// declare shippingCost: number
-
-// @column({ columnName: 'discount_amount' })
-// declare discountAmount: number
-
-// @column({ columnName: 'total_amount' })
-// declare totalAmount: number
-
-// @column({ columnName: 'promo_code' })
-// declare promoCode: string | null
-
-// @column()
-// declare notes: string | null
-
-// @column.dateTime({ columnName: 'confirmed_at' })
-// declare confirmedAt: DateTime | null
-
-// @column.dateTime({ columnName: 'shipped_at' })
-// declare shippedAt: DateTime | null
-
-// @column.dateTime({ columnName: 'delivered_at' })
-// declare deliveredAt: DateTime | null
-
-// @column.dateTime({ autoCreate: true })
-// declare createdAt: DateTime
-
-// @column.dateTime({ autoCreate: true, autoUpdate: true })
-// declare updatedAt: DateTime

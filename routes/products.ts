@@ -7,6 +7,7 @@ export function registerPublicProductRoutes() {
     .group(() => {
       router.get('/products', '#controllers/products_controller.index')
       router.get('/products/featured', '#controllers/products_controller.featured')
+      router.get('/products/new', '#controllers/products_controller.getNewProducts')
       router.get('/products/filters', '#controllers/products_controller.getFilters')
       router.get('/products/global-filters', '#controllers/products_controller.getGlobalFilters')
       router.get(

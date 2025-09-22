@@ -25,9 +25,11 @@ services:
     ports:
       - '${DB_PORT:-5432}:5432'
     environment:
-      - POSTGRES_USER=postgres
+      - POSTGRES_USER=kesimarket_user
       - POSTGRES_PASSWORD=kesimarket_postgres_password
       - POSTGRES_DB=kesimarket
+      - POSTGRES_HOST=db
+      - POSTGRES_HOST_AUTH_METHOD=trust
     volumes:
       - postgres_data:/var/lib/postgresql/data
 

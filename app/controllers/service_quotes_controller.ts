@@ -274,9 +274,7 @@ export default class ServiceQuotesController {
         .count('* as total')) as unknown as { total: number }[]
       const quoted = (await ServiceQuote.query()
         .where('status', 'quoted')
-        .count('* as total')) as unknown as {
-        total: number
-      }[]
+        .count('* as total')) as unknown as { total: number }[]
       const accepted = (await ServiceQuote.query()
         .where('status', 'accepted')
         .count('* as total')) as unknown as { total: number }[]

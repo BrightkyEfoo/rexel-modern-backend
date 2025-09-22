@@ -1,12 +1,37 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import Order from '#models/order'
 import OrderItem from '#models/order_item'
+import OrderIssue from '#models/order_issue'
 import Cart from '#models/cart'
 import Address from '#models/address'
 import { DateTime } from 'luxon'
 import { createOrderValidator, updateOrderStatusValidator } from '#validators/create_order'
+import { createOrderIssueValidator, updateOrderIssueValidator } from '#validators/order_issue'
+import { PDFService } from '#services/pdf_service'
 
 export default class OrdersController {
+  /**
+   * Récupérer les commandes d'un utilisateur
+   */
+  async myOrders({ auth, request, response }: HttpContext) {
+    const user = await auth.authenticate()
+    const page = request.input('page', 1)
+    const limit = request.input('limit', 10)
+
+    const orders = await Order.query()
+      .where('userId', user.id)
+      .preload('items', (itemQuery) => {
+        itemQuery.preload('product')
+      })
+      .orderBy('createdAt', 'desc')
+      .paginate(page, limit)
+
+    return response.ok({
+      data: orders.serialize(),
+      meta: orders.getMeta(),
+    })
+  }
+
   /**
    * Créer une commande à partir du panier
    */
@@ -196,14 +221,24 @@ export default class OrdersController {
    */
   async show({ auth, params, response }: HttpContext) {
     const user = await auth.authenticate()
-    const orderId = params.id
+    const orderId = params.orderNumber
 
     let query = Order.query()
-      .where('id', orderId)
+
+    if (Number.isNaN(Number(orderId))) {
+      query = query.where('orderNumber', orderId)
+    } else {
+      query = query.where('id', orderId)
+    }
+
+    query = query
       .preload('user')
       .preload('items', (itemQuery) => {
-        itemQuery.preload('product')
+        itemQuery.preload('product', (productQuery) => {
+          productQuery.preload('brand')
+        })
       })
+      .preload('issues')
 
     // Si ce n'est pas un admin, limiter aux commandes de l'utilisateur
     if (user.type !== 'admin') {
@@ -226,7 +261,7 @@ export default class OrdersController {
   /**
    * Confirmer une commande (admin uniquement)
    */
-  async confirm({ auth, params, response }: HttpContext) {
+  async confirmOrder({ auth, params, response }: HttpContext) {
     const user = await auth.authenticate()
 
     // Vérifier si l'utilisateur est admin
@@ -362,5 +397,341 @@ export default class OrdersController {
       data: order,
       message: 'Commande annulée avec succès',
     })
+  }
+
+  /**
+   * Télécharger la facture PDF d'une commande
+   */
+  async downloadInvoice({ auth, params, response }: HttpContext) {
+    const user = await auth.authenticate()
+    const orderNumber = params.orderNumber
+
+    const order = await Order.query()
+      .where('orderNumber', orderNumber)
+      .where('userId', user.id)
+      .preload('items', (itemQuery) => {
+        itemQuery.preload('product', (productQuery) => {
+          productQuery.preload('brand')
+        })
+      })
+      .preload('user')
+      .first()
+
+    if (!order) {
+      return response.notFound({
+        message: 'Commande introuvable',
+      })
+    }
+
+    try {
+      const { pdfBuffer, signature } = await PDFService.generateInvoicePDF(order)
+
+      // Enregistrer la signature en base pour vérification ultérieure
+      order.invoiceSignature = signature
+      await order.save()
+
+      return response
+        .header('Content-Type', 'application/pdf')
+        .header('Content-Disposition', `attachment; filename="facture-${orderNumber}.pdf"`)
+        .header('X-Invoice-Signature', signature)
+        .send(pdfBuffer)
+    } catch (error) {
+      return response.internalServerError({
+        message: 'Erreur lors de la génération de la facture',
+        error: error.message,
+      })
+    }
+  }
+
+  /**
+   * Vérifier la signature d'une facture (Admin uniquement)
+   */
+  async verifyInvoiceSignature({ request, response }: HttpContext) {
+    const { orderNumber, signature, pdfData } = request.only([
+      'orderNumber',
+      'signature',
+      'pdfData',
+    ])
+
+    if (!orderNumber || !signature) {
+      return response.badRequest({
+        message: 'Numéro de commande et signature requis',
+      })
+    }
+
+    try {
+      // Récupérer la commande
+      const order = await Order.query().where('orderNumber', orderNumber).first()
+
+      if (!order) {
+        return response.notFound({
+          message: 'Commande introuvable',
+        })
+      }
+
+      // Vérifier avec la signature stockée en base
+      const isValidStored = order.invoiceSignature === signature
+
+      // Si PDF fourni, vérifier aussi avec le contenu
+      let isValidContent = false
+      if (pdfData) {
+        const pdfBuffer = Buffer.from(pdfData, 'base64')
+        isValidContent = PDFService.verifySignature(orderNumber, pdfBuffer, signature)
+      }
+
+      return response.ok({
+        data: {
+          orderNumber,
+          isValidStored,
+          isValidContent,
+          isValid: isValidStored && (pdfData ? isValidContent : true),
+          verificationDate: new Date().toISOString(),
+          order: {
+            id: order.id,
+            orderNumber: order.orderNumber,
+            totalAmount: order.totalAmount,
+            createdAt: order.createdAt,
+            status: order.status,
+          },
+        },
+      })
+    } catch (error) {
+      return response.internalServerError({
+        message: 'Erreur lors de la vérification',
+        error: error.message,
+      })
+    }
+  }
+
+  /**
+   * Lister les factures avec leurs signatures (Admin uniquement)
+   */
+  async getInvoiceSignatures({ request, response }: HttpContext) {
+    const page = request.input('page', 1)
+    const limit = request.input('limit', 20)
+    const search = request.input('search', '')
+
+    let query = Order.query()
+      .whereNotNull('invoiceSignature')
+      .preload('user')
+      .orderBy('createdAt', 'desc')
+
+    if (search) {
+      query = query.where((searchQuery) => {
+        searchQuery.where('orderNumber', 'ILIKE', `%${search}%`).orWhereHas('user', (userQuery) => {
+          userQuery
+            .where('firstName', 'ILIKE', `%${search}%`)
+            .orWhere('lastName', 'ILIKE', `%${search}%`)
+            .orWhere('email', 'ILIKE', `%${search}%`)
+        })
+      })
+    }
+
+    const orders = await query.paginate(page, limit)
+
+    return response.ok({
+      data: orders.serialize(),
+      meta: orders.getMeta(),
+    })
+  }
+
+  /**
+   * Signaler un problème sur une commande
+   */
+  async reportIssue({ auth, request, response }: HttpContext) {
+    const user = await auth.authenticate()
+    const payload = await request.validateUsing(createOrderIssueValidator)
+
+    // Vérifier que la commande appartient à l'utilisateur
+    const order = await Order.query().where('id', payload.orderId).where('userId', user.id).first()
+
+    if (!order) {
+      return response.notFound({
+        message: 'Commande introuvable',
+      })
+    }
+
+    try {
+      const issue = await OrderIssue.create({
+        orderId: order.id,
+        userId: user.id,
+        issueNumber: OrderIssue.generateIssueNumber(),
+        type: payload.type,
+        subject: payload.subject,
+        description: payload.description,
+        priority: payload.priority || 'medium',
+        attachments: payload.attachments || [],
+      })
+
+      await issue.load('order')
+      await issue.load('user')
+
+      // TODO: Envoyer notification email à l'admin
+      // await this.sendIssueNotificationEmail(issue)
+
+      return response.ok({
+        data: issue,
+        message: 'Signalement créé avec succès',
+      })
+    } catch (error) {
+      return response.internalServerError({
+        message: 'Erreur lors de la création du signalement',
+        error: error.message,
+      })
+    }
+  }
+
+  /**
+   * Lister les signalements d'une commande (pour l'utilisateur)
+   */
+  async getOrderIssues({ auth, params, response }: HttpContext) {
+    const user = await auth.authenticate()
+    const orderNumber = params.orderNumber
+
+    const order = await Order.query()
+      .where('orderNumber', orderNumber)
+      .where('userId', user.id)
+      .first()
+
+    if (!order) {
+      return response.notFound({
+        message: 'Commande introuvable',
+      })
+    }
+
+    const issues = await OrderIssue.query()
+      .where('orderId', order.id)
+      .preload('user')
+      .orderBy('createdAt', 'desc')
+
+    return response.ok({
+      data: issues,
+    })
+  }
+
+  /**
+   * Lister tous les signalements (Admin uniquement)
+   */
+  async getAllIssues({ request, response }: HttpContext) {
+    const page = request.input('page', 1)
+    const limit = request.input('limit', 20)
+    const status = request.input('status', '')
+    const priority = request.input('priority', '')
+    const search = request.input('search', '')
+
+    let query = OrderIssue.query()
+      .preload('order')
+      .preload('user')
+      .preload('assignedUser')
+      .orderBy('createdAt', 'desc')
+
+    if (status) {
+      query = query.where('status', status)
+    }
+
+    if (priority) {
+      query = query.where('priority', priority)
+    }
+
+    if (search) {
+      query = query.where((searchQuery) => {
+        searchQuery
+          .where('issueNumber', 'ILIKE', `%${search}%`)
+          .orWhere('subject', 'ILIKE', `%${search}%`)
+          .orWhereHas('order', (orderQuery) => {
+            orderQuery.where('orderNumber', 'ILIKE', `%${search}%`)
+          })
+          .orWhereHas('user', (userQuery) => {
+            userQuery
+              .where('firstName', 'ILIKE', `%${search}%`)
+              .orWhere('lastName', 'ILIKE', `%${search}%`)
+              .orWhere('email', 'ILIKE', `%${search}%`)
+          })
+      })
+    }
+
+    const issues = await query.paginate(page, limit)
+
+    return response.ok({
+      data: issues.serialize(),
+      meta: issues.getMeta(),
+    })
+  }
+
+  /**
+   * Mettre à jour un signalement (Admin uniquement)
+   */
+  async updateIssue({ params, request, response }: HttpContext) {
+    const issueId = params.id
+    const payload = await request.validateUsing(updateOrderIssueValidator)
+
+    const issue = await OrderIssue.findOrFail(issueId)
+
+    if (payload.status) {
+      issue.status = payload.status
+      if (payload.status === 'resolved' && !issue.resolvedAt) {
+        issue.resolvedAt = DateTime.now()
+      }
+    }
+
+    if (payload.priority) issue.priority = payload.priority
+    if (payload.adminNotes !== undefined) issue.adminNotes = payload.adminNotes
+    if (payload.resolution !== undefined) issue.resolution = payload.resolution
+    if (payload.assignedTo !== undefined) issue.assignedTo = payload.assignedTo
+
+    await issue.save()
+    await issue.load('order')
+    await issue.load('user')
+    await issue.load('assignedUser')
+
+    return response.ok({
+      data: issue,
+      message: 'Signalement mis à jour avec succès',
+    })
+  }
+
+  /**
+   * Annuler une commande (si possible)
+   */
+  async cancelOrder({ auth, params, request, response }: HttpContext) {
+    const user = await auth.authenticate()
+    const orderNumber = params.orderNumber
+    const { reason } = request.only(['reason'])
+
+    const order = await Order.query()
+      .where('orderNumber', orderNumber)
+      .where('userId', user.id)
+      .first()
+
+    if (!order) {
+      return response.notFound({
+        message: 'Commande introuvable',
+      })
+    }
+
+    if (!order.canBeCancelled()) {
+      return response.badRequest({
+        message: 'Cette commande ne peut plus être annulée. Statut actuel: ' + order.status,
+      })
+    }
+
+    try {
+      order.status = 'cancelled'
+      order.notes = reason ? `Annulée par le client: ${reason}` : 'Annulée par le client'
+      await order.save()
+
+      await order.load('items')
+      await order.load('user')
+
+      return response.ok({
+        data: order,
+        message: 'Commande annulée avec succès',
+      })
+    } catch (error) {
+      return response.internalServerError({
+        message: "Erreur lors de l'annulation de la commande",
+        error: error.message,
+      })
+    }
   }
 }

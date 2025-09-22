@@ -884,4 +884,61 @@ export default class ProductsController {
       })
     }
   }
+
+  /**
+   * Récupérer les nouveaux produits (30 derniers ajouts)
+   */
+  async getNewProducts({ request, response }: HttpContext) {
+    try {
+      const limit = request.input('limit', 30)
+      const categoryId = request.input('category_id')
+
+      let query = Product.query()
+        .preload('brand')
+        .preload('categories')
+        .where('isActive', true)
+        .orderBy('createdAt', 'desc')
+        .limit(limit)
+
+      // Filtrer par catégorie si spécifiée (relation many-to-many)
+      if (categoryId) {
+        query = query.whereHas('categories', (categoryQuery) => {
+          categoryQuery.where('category_id', categoryId)
+        })
+      }
+
+      const products = await query
+
+      // Récupérer les catégories avec le nombre de nouveaux produits
+      const categoriesQuery = Category.query()
+        .whereHas('products', (productQuery) => {
+          productQuery.where('isActive', true)
+        })
+        .withCount('products', (productQuery) => {
+          productQuery.where('isActive', true)
+        })
+        .orderBy('name')
+
+      const categories = await categoriesQuery
+
+      return response.ok({
+        data: {
+          products,
+          categories: [
+            { id: null, name: 'Tous', productsCount: products.length },
+            ...categories.map((cat) => ({
+              id: cat.id,
+              name: cat.name,
+              productsCount: cat.$extras.products_count,
+            })),
+          ],
+        },
+      })
+    } catch (error) {
+      return response.internalServerError({
+        message: 'Erreur lors de la récupération des nouveaux produits',
+        error: error.message,
+      })
+    }
+  }
 }

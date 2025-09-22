@@ -109,16 +109,14 @@ export default class FormationsController {
       const startDate = DateTime.fromObject({ year: Number.parseInt(year), month: 1, day: 1 })
       const endDate = DateTime.fromObject({ year: Number.parseInt(year), month: 12, day: 31 })
 
-      const formationsQuery = Formation.query()
-
+      let query = Formation.query()
       if (startDate && endDate) {
-        formationsQuery.whereBetween('next_date', [
+        query = query.whereBetween('next_date', [
           startDate.toSQLDate() || '',
           endDate.toSQLDate() || '',
         ])
       }
-
-      const formations = await formationsQuery
+      const formations = await Formation.query()
         .where('is_active', true)
         .preload('instructor')
         .preload('center')

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/naming-convention */
 import Typesense from 'typesense'
 import { inject } from '@adonisjs/core'
 import config from '@adonisjs/core/services/config'
