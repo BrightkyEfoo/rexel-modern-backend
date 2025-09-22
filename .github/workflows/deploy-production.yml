@@ -2,8 +2,8 @@ name: Deploy Backend to Production
 
 on:
   push:
-    branches: [ main, master ]
-      
+    branches: [main, master]
+
   workflow_dispatch:
     inputs:
       run_migrations:
@@ -59,7 +59,6 @@ jobs:
             mkdir -p ${{ env.VPS_DEPLOY_PATH }}/uploads
             mkdir -p ${{ env.VPS_DEPLOY_PATH }}/minio-data
 
-
   docker-setup:
     name: Verify Docker Setup
     runs-on: ubuntu-latest
@@ -74,7 +73,7 @@ jobs:
           port: 22
           script: |
             echo "=== Docker Environment Check ==="
-            
+
             # Check if Docker is installed
             if ! command -v docker &> /dev/null; then
               echo "🔧 Docker not found, installing..."
@@ -84,7 +83,7 @@ jobs:
             else
               echo "✅ Docker is installed: $(docker --version)"
             fi
-            
+
             # Check if Docker service is running
             if ! sudo systemctl is-active --quiet docker; then
               echo "🔧 Starting Docker service..."
@@ -93,7 +92,7 @@ jobs:
             else
               echo "✅ Docker service is running"
             fi
-            
+
             # Check if user is in docker group
             if ! groups $USER | grep -q '\bdocker\b'; then
               echo "🔧 Adding user to docker group..."
@@ -102,12 +101,12 @@ jobs:
             else
               echo "✅ User is in docker group"
             fi
-            
+
             # Test Docker access with retry logic
             echo "🧪 Testing Docker access..."
             max_attempts=5
             attempt=1
-            
+
             while [ $attempt -le $max_attempts ]; do
               if docker ps &> /dev/null; then
                 echo "✅ Docker access test successful!"
@@ -133,7 +132,7 @@ jobs:
               fi
               attempt=$((attempt + 1))
             done
-            
+
             # Install Docker Compose if not present
             if ! command -v docker-compose &> /dev/null && ! docker compose version &> /dev/null; then
               echo "🔧 Installing Docker Compose..."
@@ -142,18 +141,18 @@ jobs:
             else
               echo "✅ Docker Compose is available"
             fi
-            
+
             # Setup shared Docker network for frontend/backend communication
             echo "=== Setting up shared Docker network ==="
             NETWORK_NAME="kesimarket-net"
-            
+
             # Determine if we need to use sudo
             USE_SUDO=""
             if ! docker ps &> /dev/null; then
               USE_SUDO="sudo "
               echo "⚠️  Using sudo for Docker commands"
             fi
-            
+
             # Check if network exists
             if ${USE_SUDO}docker network ls | grep -q $NETWORK_NAME; then
               echo "✅ Network '$NETWORK_NAME' already exists"
@@ -168,11 +167,11 @@ jobs:
                 exit 1
               fi
             fi
-            
+
             # Verify network details
             echo "📋 Network details:"
             ${USE_SUDO}docker network inspect $NETWORK_NAME --format '{{json .}}' | grep -E '"Name"|"Driver"|"Scope"' || true
-            
+
             # Final verification
             echo "=== Final Docker Environment Status ==="
             docker --version || sudo docker --version
@@ -186,11 +185,16 @@ jobs:
     runs-on: ubuntu-latest
     needs: [docker-setup, prepare-directory]
     steps:
+      - name: Remove old artifacts
+        uses: ./.github/actions/gha-remove-artifacts-master
+        with:
+          age: '0 days'
+
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      
+
       - name: Upload source code
         uses: actions/upload-artifact@v4
         with:
@@ -208,7 +212,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: source-code
-      
+
       - name: Create production .env file
         run: |
           cat > .env << EOF
@@ -217,7 +221,7 @@ jobs:
           HOST=0.0.0.0
           LOG_LEVEL=info
           APP_KEY=${{ secrets.APP_KEY }}
-          
+
           # Database Configuration (Internal PostgreSQL)
           DB_CONNECTION=pg
           DB_HOST=db
@@ -225,7 +229,7 @@ jobs:
           DB_USER=${{ secrets.DB_USER }}
           DB_PASSWORD=${{ secrets.DB_PASSWORD }}
           DB_DATABASE=${{ secrets.DB_DATABASE }}
-          
+
           # MinIO Configuration (Internal Service)
           MINIO_HOST=minio
           MINIO_PORT=9000
@@ -234,23 +238,23 @@ jobs:
           MINIO_USE_SSL=false
           MINIO_BUCKET=${{ secrets.MINIO_BUCKET }}
           MINIO_PUBLIC_ENDPOINT=${{ secrets.MINIO_PUBLIC_ENDPOINT }}
-          
+
           # Redis Configuration (Internal Service)
           REDIS_HOST=redis
           REDIS_PORT=6379
           REDIS_PASSWORD=${{ secrets.REDIS_PASSWORD }}
-          
+
           # Typesense Configuration (Internal Service)
           TYPESENSE_HOST=typesense
           TYPESENSE_PORT=8108
           TYPESENSE_API_KEY=${{ secrets.TYPESENSE_API_KEY }}
-          
+
           # JWT Configuration
           JWT_SECRET=${{ secrets.JWT_SECRET }}
-          
+
           # CORS Configuration
           CORS_ORIGINS=${{ secrets.CORS_ORIGINS }}
-          
+
           # Email Configuration (optional)
           SMTP_HOST=${{ secrets.SMTP_HOST }}
           SMTP_PORT=${{ secrets.SMTP_PORT }}
@@ -259,21 +263,21 @@ jobs:
           SMTP_FROM=${{ secrets.SMTP_FROM }}
           MAIL_USERNAME=${{ secrets.MAIL_USERNAME }}
           GOOGLE_APP_SECRET=${{ secrets.GOOGLE_APP_SECRET }}
-          
+
           # Frontend URL
           FRONTEND_URL=${{ secrets.FRONTEND_URL }}
-    
+
           # Storage Configuration
           STORAGE_DRIVER=minio
           EOF
-      
+
       - name: Verify .env file created
         run: |
           echo "Checking if .env file exists..."
           ls -la .env
           echo "Environment variables count:"
           wc -l .env
-      
+
       - name: Generate image tag
         id: tag
         run: |
@@ -283,12 +287,12 @@ jobs:
           echo "image-tag=${IMAGE_TAG}" >> $GITHUB_OUTPUT
           echo "short-sha=${SHORT_SHA}" >> $GITHUB_OUTPUT
           echo "timestamp=${TIMESTAMP}" >> $GITHUB_OUTPUT
-      
+
       - name: Build Docker image
         run: |
           docker build -t ${{ steps.tag.outputs.image-tag }} .
           docker tag ${{ steps.tag.outputs.image-tag }} ${{ env.DOCKER_IMAGE_NAME }}:latest
-      
+
       - name: Save Docker image to tar
         run: |
           docker save ${{ steps.tag.outputs.image-tag }} > kesimarket-backend-prod.tar
@@ -313,7 +317,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: docker-image-prod
-      
+
       - name: Transfer Docker image and compose files to VPS
         uses: appleboy/scp-action@v0.1.7
         with:
@@ -321,9 +325,9 @@ jobs:
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_PRIVATE_KEY }}
           port: 22
-          source: "kesimarket-backend-prod.tar,docker-compose.prod.yml"
+          source: 'kesimarket-backend-prod.tar,docker-compose.prod.yml'
           target: ${{ env.VPS_DEPLOY_PATH }}/
-      
+
       - name: Create backup and organize files
         uses: appleboy/ssh-action@v1.0.3
         with:
@@ -334,15 +338,15 @@ jobs:
           script: |
             # Create images directory if it doesn't exist
             mkdir -p ${{ env.VPS_DEPLOY_PATH }}/images
-            
+
             # Backup previous image if exists
             if [ -f ${{ env.VPS_DEPLOY_PATH }}/images/kesimarket-backend-prod-current.tar ]; then
               mv ${{ env.VPS_DEPLOY_PATH }}/images/kesimarket-backend-prod-current.tar ${{ env.VPS_DEPLOY_PATH }}/backups/kesimarket-backend-prod-backup-$(date +%Y%m%d-%H%M%S).tar
             fi
-            
+
             # Move new image to images directory
             mv ${{ env.VPS_DEPLOY_PATH }}/kesimarket-backend-prod.tar ${{ env.VPS_DEPLOY_PATH }}/images/kesimarket-backend-prod-current.tar
-            
+
             echo "✅ Docker image organized successfully"
 
   load-and-run:
@@ -360,7 +364,7 @@ jobs:
           port: 22
           script: |
             cd ${{ env.VPS_DEPLOY_PATH }}
-            
+
             # Detect if sudo is needed for Docker commands
             USE_SUDO=""
             if ! docker ps &> /dev/null; then
@@ -374,7 +378,7 @@ jobs:
             else
               echo "✅ Docker accessible without sudo"
             fi
-            
+
             # Create production .env file
             cat > .env << EOF
             NODE_ENV=production
@@ -382,7 +386,7 @@ jobs:
             HOST=0.0.0.0
             LOG_LEVEL=info
             APP_KEY=${{ secrets.APP_KEY }}
-            
+
             # Database Configuration
             DB_CONNECTION=pg
             DB_HOST=db
@@ -390,7 +394,7 @@ jobs:
             DB_USER=${{ secrets.DB_USER }}
             DB_PASSWORD=${{ secrets.DB_PASSWORD }}
             DB_DATABASE=${{ secrets.DB_DATABASE }}
-            
+
             # MinIO Configuration
             MINIO_HOST=minio
             MINIO_PORT=9000
@@ -406,18 +410,18 @@ jobs:
             REDIS_HOST=redis
             REDIS_PORT=6379
             REDIS_PASSWORD=${{ secrets.REDIS_PASSWORD }}
-            
+
             # Typesense Configuration
             TYPESENSE_HOST=typesense
             TYPESENSE_PORT=8108
             TYPESENSE_API_KEY=${{ secrets.TYPESENSE_API_KEY }}
-            
+
             # JWT Configuration
             JWT_SECRET=${{ secrets.JWT_SECRET }}
-            
+
             # CORS Configuration
             CORS_ORIGINS=${{ secrets.CORS_ORIGINS }}
-            
+
             # Email Configuration (optional)
             SMTP_HOST=${{ secrets.SMTP_HOST }}
             SMTP_PORT=${{ secrets.SMTP_PORT }}
@@ -426,14 +430,14 @@ jobs:
             SMTP_FROM=${{ secrets.SMTP_FROM }}
             MAIL_USERNAME=${{ secrets.MAIL_USERNAME }}
             GOOGLE_APP_SECRET=${{ secrets.GOOGLE_APP_SECRET }}
-            
+
             # Frontend URL
             FRONTEND_URL=${{ secrets.FRONTEND_URL }}
-            
+
             # Storage Configuration
             STORAGE_DRIVER=minio
             EOF
-            
+
             # Create .env file for docker-compose
             cat > .env << 'EOF'
             DB_USER=${{ secrets.DB_USER }}
@@ -457,16 +461,16 @@ jobs:
             MAIL_USERNAME=${{ secrets.MAIL_USERNAME }}
             GOOGLE_APP_SECRET=${{ secrets.GOOGLE_APP_SECRET }}
             EOF
-            
+
             echo "✅ Environment file created for docker-compose"
-            
+
             # Create shared Docker network if it doesn't exist
             echo "🌐 Checking shared Docker network..."
             NETWORK_NAME="kesimarket-net"
-            
+
             echo "📋 Current networks:"
             ${USE_SUDO}docker network ls
-            
+
             # More precise network detection using exact name match
             if ${USE_SUDO}docker network inspect "$NETWORK_NAME" >/dev/null 2>&1; then
               echo "✅ Network '$NETWORK_NAME' already exists and is accessible"
@@ -493,18 +497,18 @@ jobs:
                 exit 1
               fi
             fi
-            
+
             # Load the new Docker image
             ${USE_SUDO}docker load < images/kesimarket-backend-prod-current.tar
-            
+
             # Tag the loaded image as latest for docker-compose
             IMAGE_NAME=$(${USE_SUDO}docker images --format "table {{.Repository}}:{{.Tag}}" | grep kesimarket-backend-prod | grep -v latest | head -n 1)
             ${USE_SUDO}docker tag $IMAGE_NAME kesimarket-backend-prod:latest
-            
+
             # Stop existing services
             echo 'Stopping existing services...'
             ${USE_SUDO}docker compose -f docker-compose.prod.yml down || echo 'No existing services to stop'
-            
+
             # Final network verification before starting services
             echo "🔍 Final network verification before starting services..."
             if ! ${USE_SUDO}docker network ls | grep -q "kesimarket-net"; then
@@ -513,18 +517,18 @@ jobs:
               ${USE_SUDO}docker network ls
               exit 1
             fi
-            
+
             echo "✅ Network kesimarket-net confirmed ready"
-            
+
             # Start infrastructure services first (db, minio, redis, typesense)
             echo 'Starting infrastructure services...'
             ${USE_SUDO}docker compose -f docker-compose.prod.yml up -d db minio redis typesense
-            
+
             # Wait for database to be ready with better error handling
             echo "Waiting for database to be ready..."
             MAX_ATTEMPTS=30
             ATTEMPT=1
-            
+
             while [ $ATTEMPT -le $MAX_ATTEMPTS ]; do
               echo "🔍 Database check attempt $ATTEMPT/$MAX_ATTEMPTS..."
               
@@ -545,16 +549,16 @@ jobs:
               fi
               ATTEMPT=$((ATTEMPT + 1))
             done
-            
+
             # Create database if not exists
             echo "Creating database ${{ secrets.DB_DATABASE }} if not exists..."
             ${USE_SUDO}docker compose -f docker-compose.prod.yml exec -T db psql -U ${{ secrets.DB_USER }} -c "SELECT 'CREATE DATABASE \"${{ secrets.DB_DATABASE }}\"' WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = '${{ secrets.DB_DATABASE }}') \gexec"
-            
+
             # Wait for MinIO to be ready
             echo "Waiting for MinIO to be ready..."
             MAX_MINIO_ATTEMPTS=30
             MINIO_ATTEMPT=1
-            
+
             while [ $MINIO_ATTEMPT -le $MAX_MINIO_ATTEMPTS ]; do
               echo "🔍 MinIO check attempt $MINIO_ATTEMPT/$MAX_MINIO_ATTEMPTS..."
               
@@ -573,37 +577,37 @@ jobs:
               fi
               MINIO_ATTEMPT=$((MINIO_ATTEMPT + 1))
             done
-            
+
             # Wait a moment for Typesense to start (no health check needed)
             echo "Waiting 10 seconds for Typesense to start..."
             sleep 10
             echo "✅ Typesense startup period completed"
-            
+
             # Verify database is accessible
             echo "Verifying database is accessible..."
             ${USE_SUDO}docker compose -f docker-compose.prod.yml exec -T db psql -U ${{ secrets.DB_USER }} -d "${{ secrets.DB_DATABASE }}" -c "SELECT 1;" > /dev/null
             echo "Database is ready!"
-            
+
             # Give infrastructure services a moment to settle
             echo "Waiting 10 seconds before starting application..."
             sleep 10
-            
+
             # Start application service
             echo 'Starting application service...'
             ${USE_SUDO}docker compose -f docker-compose.prod.yml up -d app
-            
+
             # Wait for services to start
             echo 'Waiting for services to start...'
             sleep 15
-            
+
             # Check if services are running
             echo 'Checking service status...'
             echo '📋 Container Status:'
             ${USE_SUDO}docker ps -f name=kesimarket- --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
-            
+
             # Check application container
             app_running=$(${USE_SUDO}docker ps -q -f name=${{ env.CONTAINER_NAME }})
-            
+
             if [ ! -z "$app_running" ]; then
               echo '✅ Application container is running!'
             else
@@ -611,7 +615,7 @@ jobs:
               ${USE_SUDO}docker compose -f docker-compose.prod.yml logs app
               exit 1
             fi
-            
+
             echo 'Deployment completed - services are starting up...'
 
   run-migrations:
@@ -630,7 +634,7 @@ jobs:
           port: 22
           script: |
             cd ${{ env.VPS_DEPLOY_PATH }}
-            
+
             # Detect if sudo is needed for Docker commands
             USE_SUDO=""
             if ! docker ps &> /dev/null; then
@@ -642,10 +646,10 @@ jobs:
                 exit 1
               fi
             fi
-            
+
             echo "Running database migrations..."
             ${USE_SUDO}docker compose -f docker-compose.prod.yml exec -T app node ace migration:run --force
-            
+
             if [ $? -eq 0 ]; then
               echo "✅ Migrations completed successfully!"
             else
@@ -669,7 +673,7 @@ jobs:
           port: 22
           script: |
             cd ${{ env.VPS_DEPLOY_PATH }}
-            
+
             # Detect if sudo is needed for Docker commands
             USE_SUDO=""
             if ! docker ps &> /dev/null; then
@@ -681,13 +685,13 @@ jobs:
                 exit 1
               fi
             fi
-            
+
             echo "🚀 Setting up MinIO configuration..."
-            
+
             # Check MinIO configuration first
             echo "📋 Checking MinIO configuration..."
             ${USE_SUDO}docker compose -f docker-compose.prod.yml exec -T app node ace minio:check || echo "⚠️  MinIO check failed, but continuing..."
-            
+
             # Setup MinIO buckets with application
             echo "📦 Setting up MinIO buckets..."
             if ${USE_SUDO}docker compose -f docker-compose.prod.yml exec -T app node ace minio:setup; then
@@ -716,7 +720,7 @@ jobs:
           port: 22
           script: |
             cd ${{ env.VPS_DEPLOY_PATH }}
-            
+
             # Detect if sudo is needed for Docker commands
             USE_SUDO=""
             if ! docker ps &> /dev/null; then
@@ -728,10 +732,10 @@ jobs:
                 exit 1
               fi
             fi
-            
+
             SEED_TYPE="${{ github.event.inputs.seed_type || 'production' }}"
             echo "Running database seeds (type: $SEED_TYPE)..."
-            
+
             if [ "$SEED_TYPE" = "production" ]; then
               # Run main seeder which should handle production data
               ${USE_SUDO}docker compose -f docker-compose.prod.yml exec -T app node ace db:seed --files="database/seeders/main_seeder.ts"
@@ -739,7 +743,7 @@ jobs:
               # Run all seeders for development data
               ${USE_SUDO}docker compose -f docker-compose.prod.yml exec -T app node ace db:seed
             fi
-            
+
             if [ $? -eq 0 ]; then
               echo "✅ Seeds completed successfully!"
             else
@@ -764,7 +768,7 @@ jobs:
           port: 22
           script: |
             cd ${{ env.VPS_DEPLOY_PATH }}
-            
+
             # Detect if sudo is needed for Docker commands
             USE_SUDO=""
             if ! docker ps &> /dev/null; then
@@ -776,13 +780,13 @@ jobs:
                 exit 1
               fi
             fi
-            
+
             echo "=== COMPREHENSIVE HEALTH CHECK ==="
-            
+
             # Check container status
             echo "📋 Container Status:"
             ${USE_SUDO}docker ps -f name=kesimarket- --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
-            
+
             # Check infrastructure services
             echo -e "\n🔍 Infrastructure Services Status:"
             echo "Database:"
@@ -793,11 +797,11 @@ jobs:
             ${USE_SUDO}docker ps -f name=kesimarket-redis-prod --format "  {{.Names}}: {{.Status}}" || echo "  Not running"
             echo "Typesense:"
             ${USE_SUDO}docker ps -f name=kesimarket-typesense-prod --format "  {{.Names}}: {{.Status}}" || echo "  Not running"
-            
+
             # Check application logs (last 10 lines)
             echo -e "\n📝 Application Logs (last 10 lines):"
             ${USE_SUDO}docker compose -f docker-compose.prod.yml logs --tail=10 app
-            
+
             # Test database connection (optional check)
             echo -e "\n🗄️  Database Connection Test:"
             if ${USE_SUDO}docker compose -f docker-compose.prod.yml exec -T app node ace migration:status > /dev/null 2>&1; then
@@ -805,7 +809,7 @@ jobs:
             else
               echo "⚠️  Database connection test failed (services may still be starting)"
             fi
-            
+
             # Test MinIO connection (optional check)
             echo -e "\n📦 MinIO Connection Test:"
             if ${USE_SUDO}docker compose -f docker-compose.prod.yml exec -T app node ace minio:check > /dev/null 2>&1; then
@@ -813,21 +817,21 @@ jobs:
             else
               echo "⚠️  MinIO connection test failed (services may still be starting)"
             fi
-            
+
             # Simple container check instead of API test
             echo -e "\n🌐 Application Status:"
             app_running=$(${USE_SUDO}docker ps -q -f name=kesimarket-backend-prod)
-            
+
             if [ ! -z "$app_running" ]; then
               echo "✅ Application container is running"
             else
               echo "❌ Application container not running"
             fi
-            
+
             # Check disk space
             echo -e "\n💾 Disk Space:"
             df -h ${{ env.VPS_DEPLOY_PATH }}
-            
+
             echo -e "\n=== HEALTH CHECK COMPLETE ==="
 
   cleanup:
@@ -856,17 +860,17 @@ jobs:
                 exit 1
               fi
             fi
-            
+
             # Remove dangling images
             ${USE_SUDO}docker image prune -f
-            
+
             # Keep only the 3 most recent backup images
             cd ${{ env.VPS_DEPLOY_PATH }}/backups
             ls -t kesimarket-backend-prod-backup-*.tar 2>/dev/null | tail -n +4 | xargs -r rm -f
-            
+
             # Clean up old logs (keep last 7 days)
             find ${{ env.VPS_DEPLOY_PATH }} -name "*.log" -type f -mtime +7 -delete 2>/dev/null || true
-            
+
             echo "✅ Cleanup completed"
 
       - name: Deployment Summary
