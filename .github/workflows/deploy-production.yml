@@ -186,9 +186,9 @@ jobs:
     needs: [docker-setup, prepare-directory]
     steps:
       - name: Remove old artifacts
-        uses: ./.github/actions/gha-remove-artifacts-master
+        uses: c-hive/gha-remove-artifacts@v1
         with:
-          age: '0 days'
+          age: '1 month'
 
       - name: Checkout repository
         uses: actions/checkout@v4
