@@ -1,5 +1,5 @@
+import { BaseModel, column } from '@adonisjs/lucid/orm'
 import { DateTime } from 'luxon'
-import { BaseModel, column, computed } from '@adonisjs/lucid/orm'
 
 export default class Service extends BaseModel {
   @column({ isPrimary: true })
