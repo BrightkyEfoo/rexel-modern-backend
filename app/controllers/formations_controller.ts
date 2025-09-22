@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/naming-convention */
 import type { HttpContext } from '@adonisjs/core/http'
 import Formation from '#models/formation'
 import FormationInstructor from '#models/formation_instructor'
@@ -105,13 +106,20 @@ export default class FormationsController {
     try {
       const { year = new Date().getFullYear() } = request.qs()
 
-      const startDate = DateTime.fromObject({ year: parseInt(year), month: 1, day: 1 })
-      const endDate = DateTime.fromObject({ year: parseInt(year), month: 12, day: 31 })
+      const startDate = DateTime.fromObject({ year: Number.parseInt(year), month: 1, day: 1 })
+      const endDate = DateTime.fromObject({ year: Number.parseInt(year), month: 12, day: 31 })
 
-      const formations = await Formation.query()
+      const formationsQuery = Formation.query()
+
+      if (startDate && endDate) {
+        formationsQuery.whereBetween('next_date', [
+          startDate.toSQLDate() || '',
+          endDate.toSQLDate() || '',
+        ])
+      }
+
+      const formations = await formationsQuery
         .where('is_active', true)
-        // @ts-ignore
-        .whereBetween('next_date', [startDate.toSQLDate(), endDate.toSQLDate()])
         .preload('instructor')
         .preload('center')
         .orderBy('next_date', 'asc')
@@ -119,8 +127,7 @@ export default class FormationsController {
       // Grouper par mois
       const schedule = formations.reduce(
         (acc, formation) => {
-          // @ts-ignore
-          const month = DateTime.fromJSDate(formation.nextDate).month
+          const month = formation.nextDate.month
           if (!acc[month]) {
             acc[month] = []
           }
@@ -132,7 +139,7 @@ export default class FormationsController {
 
       return response.ok({
         data: schedule,
-        year: parseInt(year),
+        year: Number.parseInt(year),
         message: 'Formation schedule retrieved successfully',
       })
     } catch (error) {

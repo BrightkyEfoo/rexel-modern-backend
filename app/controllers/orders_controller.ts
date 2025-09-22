@@ -28,6 +28,7 @@ export default class OrdersController {
 
     // Récupérer le panier de l'utilisateur
 
+    console.log('payload', user.id)
     const cart = await Cart.query()
       .where('userId', user.id)
       .preload('items', (itemQuery) => {
@@ -198,20 +199,11 @@ export default class OrdersController {
     const orderId = params.id
 
     let query = Order.query()
-
-    if (Number.isNaN(Number(orderId))) {
-      query.where('orderNumber', orderId)
-    } else {
-      query.where('id', orderId)
-    }
-
-    query
+      .where('id', orderId)
       .preload('user')
       .preload('items', (itemQuery) => {
         itemQuery.preload('product')
       })
-      .preload('shippingAddress')
-      .preload('billingAddress')
 
     // Si ce n'est pas un admin, limiter aux commandes de l'utilisateur
     if (user.type !== 'admin') {
@@ -272,7 +264,6 @@ export default class OrdersController {
    */
   async updateStatus({ auth, params, request, response }: HttpContext) {
     const user = await auth.authenticate()
-
 
     // Vérifier si l'utilisateur est admin
     if (user.type !== 'admin') {
