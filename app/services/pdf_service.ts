@@ -27,16 +27,69 @@ export class PDFService {
     const invoiceData = this.prepareInvoiceData(order)
     const htmlContent = this.generateInvoiceHTML(invoiceData)
 
-    // Générer le PDF
-    const browser = await puppeteer.launch({
-      headless: true,
-      args: ['--no-sandbox', '--disable-setuid-sandbox'],
-    })
-
+    // Générer le PDF avec une approche plus robuste
+    let browser
     try {
-      const page = await browser.newPage()
-      await page.setContent(htmlContent, { waitUntil: 'networkidle0' })
+      browser = await puppeteer.launch({
+        headless: true, // Mode headless standard
+        args: [
+          '--no-sandbox',
+          '--disable-setuid-sandbox',
+          '--disable-dev-shm-usage',
+          '--disable-gpu',
+          '--disable-web-security',
+          '--disable-features=VizDisplayCompositor',
+          '--no-first-run',
+          '--disable-default-apps',
+          '--disable-extensions',
+          '--disable-sync',
+          '--disable-translate',
+          '--hide-scrollbars',
+          '--metrics-recording-only',
+          '--mute-audio',
+          '--no-default-browser-check',
+          '--safebrowsing-disable-auto-update',
+          '--disable-background-networking',
+        ],
+        executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
+        timeout: 60000,
+        protocolTimeout: 60000,
+      })
+    } catch (launchError) {
+      console.error('Erreur lors du lancement de Puppeteer:', launchError)
+      throw new Error(`Impossible de lancer le navigateur: ${launchError.message}`)
+    }
 
+    let page
+    try {
+      page = await browser.newPage()
+
+      // Configurer la page avec des timeouts plus longs
+      await page.setDefaultTimeout(60000)
+      await page.setDefaultNavigationTimeout(60000)
+
+      // Optimiser la page pour la génération PDF
+      await page.setViewport({ width: 1200, height: 800 })
+      await page.emulateMediaType('print')
+
+      // Définir le contenu HTML avec gestion d'erreur
+      try {
+        await page.setContent(htmlContent, {
+          waitUntil: 'networkidle0',
+          timeout: 30000,
+        })
+      } catch (contentError) {
+        console.warn('Échec avec networkidle0, tentative avec domcontentloaded')
+        await page.setContent(htmlContent, {
+          waitUntil: 'domcontentloaded',
+          timeout: 30000,
+        })
+      }
+
+      // Attendre que le contenu soit complètement chargé
+      await new Promise((resolve) => setTimeout(resolve, 2000))
+
+      // Générer le PDF avec des options optimisées
       const pdfBuffer = await page.pdf({
         format: 'A4',
         margin: {
@@ -46,16 +99,34 @@ export class PDFService {
           left: '20px',
         },
         printBackground: true,
+        preferCSSPageSize: false,
+        displayHeaderFooter: false,
+        timeout: 60000,
       })
 
       // Générer la signature numérique
-      // @ts-ignore
-      const signature = this.generateSignature(order.orderNumber, pdfBuffer)
-
-      // @ts-ignore
-      return { pdfBuffer, signature }
+      const signature = this.generateSignature(order.orderNumber, Buffer.from(pdfBuffer))
+      return { pdfBuffer: Buffer.from(pdfBuffer), signature }
+    } catch (error) {
+      console.error('Erreur lors de la génération PDF:', error)
+      throw new Error(`Erreur de génération PDF: ${error.message}`)
     } finally {
-      await browser.close()
+      // Fermer la page d'abord, puis le navigateur
+      if (page) {
+        try {
+          await page.close()
+        } catch (pageCloseError) {
+          console.error('Erreur lors de la fermeture de la page:', pageCloseError)
+        }
+      }
+      
+      if (browser) {
+        try {
+          await browser.close()
+        } catch (browserCloseError) {
+          console.error('Erreur lors de la fermeture du navigateur:', browserCloseError)
+        }
+      }
     }
   }
 
