@@ -34,5 +34,7 @@ COPY --from=build /app/build /app
 
 EXPOSE 3333
 
+RUN npx puppeteer browsers install chrome
+
 CMD ["node", "bin/server.js"]
 # CMD ["sh", "-c", "while :; do sleep 2073600; done"]
