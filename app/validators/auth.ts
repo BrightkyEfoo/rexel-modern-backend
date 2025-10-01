@@ -15,6 +15,7 @@ export const loginValidator = vine.compile(
   vine.object({
     email: vine.string().email().normalizeEmail(),
     password: vine.string(),
+    rememberMe: vine.boolean().optional(),
   })
 )
 
@@ -31,5 +32,19 @@ export const verifyOtpValidator = vine.compile(
 export const resendOtpValidator = vine.compile(
   vine.object({
     userId: vine.number().positive(),
+  })
+)
+
+export const forgotPasswordValidator = vine.compile(
+  vine.object({
+    email: vine.string().email().normalizeEmail(),
+  })
+)
+
+export const resetPasswordValidator = vine.compile(
+  vine.object({
+    token: vine.string().minLength(1),
+    password: vine.string().minLength(8).maxLength(100),
+    confirmPassword: vine.string().minLength(8).maxLength(100),
   })
 )

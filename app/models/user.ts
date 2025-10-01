@@ -51,6 +51,12 @@ export default class User extends compose(BaseModel, AuthFinder) {
   @column.dateTime({ serializeAs: null, columnName: 'verification_otp_expires_at' })
   declare verificationOtpExpiresAt: DateTime | null
 
+  @column({ serializeAs: null, columnName: 'password_reset_token' })
+  declare passwordResetToken: string | null
+
+  @column.dateTime({ serializeAs: null, columnName: 'password_reset_expires_at' })
+  declare passwordResetExpiresAt: DateTime | null
+
   @column.dateTime({ columnName: 'email_verified_at' })
   declare emailVerifiedAt: DateTime | null
 

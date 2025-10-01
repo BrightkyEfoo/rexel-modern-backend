@@ -9,6 +9,8 @@ export function registerPublicAuthRoutes() {
       router.post('/auth/login', '#controllers/auth_controller.login')
       router.post('/auth/verify-otp', '#controllers/auth_controller.verifyOtp')
       router.post('/auth/resend-otp', '#controllers/auth_controller.resendOtp')
+      router.post('/auth/forgot-password', '#controllers/auth_controller.forgotPassword')
+      router.post('/auth/reset-password', '#controllers/auth_controller.resetPassword')
     })
     .prefix('/api/v1/opened')
 }
