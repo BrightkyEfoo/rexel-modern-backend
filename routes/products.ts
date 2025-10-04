@@ -24,10 +24,14 @@ export function registerPublicProductRoutes() {
     .prefix('/api/v1/opened')
 }
 
-// Routes sécurisées pour les produits (admin)
+// Routes sécurisées pour les produits (admin/manager)
 export function registerSecuredProductRoutes() {
   router
     .group(() => {
+      // Route GET pour lister les produits (admin + manager) - inclut tous les statuts
+      router.get('/products', '#controllers/products_controller.indexSecured')
+      
+      // Routes CRUD (admin + manager)
       router.post('/products', '#controllers/products_controller.store')
       router.put('/products/:id', '#controllers/products_controller.update')
       router.delete('/products/:id', '#controllers/products_controller.destroy')
@@ -35,6 +39,19 @@ export function registerSecuredProductRoutes() {
       // Routes de validation unique
       router.post('/products/validate/sku', '#controllers/products_controller.checkSkuUnique')
       router.post('/products/validate/name', '#controllers/products_controller.checkNameUnique')
+
+      // Routes de validation des produits (admin only)
+      router.get('/products/pending', '#controllers/products_controller.pending')
+      router.post('/products/:id/approve', '#controllers/products_controller.approve')
+      router.post('/products/:id/reject', '#controllers/products_controller.reject')
+      router.get('/products/:id/activities', '#controllers/products_controller.activities')
+      
+      // Routes de validation groupée (admin only)
+      router.post('/products/bulk-approve', '#controllers/products_controller.bulkApprove')
+      router.post('/products/bulk-reject', '#controllers/products_controller.bulkReject')
+      
+      // Route pour toutes les activités (admin + manager)
+      router.get('/activities', '#controllers/products_controller.allActivities')
 
       // Routes d'importation en masse
       router.post('/products/bulk-import', '#controllers/products_bulk_controller.bulkImport')

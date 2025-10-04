@@ -119,7 +119,7 @@ export class PDFService {
           console.error('Erreur lors de la fermeture de la page:', pageCloseError)
         }
       }
-      
+
       if (browser) {
         try {
           await browser.close()
@@ -135,24 +135,42 @@ export class PDFService {
    */
   static verifySignature(orderNumber: string, pdfBuffer: Buffer, signature: string): boolean {
     try {
-      const expectedSignature = this.generateSignature(orderNumber, pdfBuffer)
-      return expectedSignature === signature
+      // Extraire le hash de la signature stockée (format: hash:timestamp encodé en base64)
+      const decodedSignature = Buffer.from(signature, 'base64').toString('utf-8')
+      const [storedHash] = decodedSignature.split(':')
+
+      // Générer le hash du PDF fourni
+      const pdfHash = this.generatePdfHash(orderNumber, pdfBuffer)
+
+      // Comparer les hashs
+      return storedHash === pdfHash
     } catch (error) {
+      console.error('Erreur lors de la vérification de signature:', error)
       return false
     }
   }
 
   /**
-   * Générer une signature numérique
+   * Générer un hash déterministe du PDF
+   */
+  private static generatePdfHash(orderNumber: string, pdfBuffer: Buffer): string {
+    // Créer un hash SHA256 basé sur le numéro de commande et le contenu du PDF
+    const data = `${orderNumber}:${pdfBuffer.toString('base64')}`
+    return crypto.createHmac('sha256', this.secretKey).update(data).digest('hex')
+  }
+
+  /**
+   * Générer une signature numérique avec timestamp
    */
   private static generateSignature(orderNumber: string, pdfBuffer: Buffer): string {
-    const data = `${orderNumber}:${pdfBuffer.toString('base64')}`
-    const signature = crypto.createHmac('sha256', this.secretKey).update(data).digest('hex')
+    // Générer le hash déterministe
+    const pdfHash = this.generatePdfHash(orderNumber, pdfBuffer)
 
-    // Ajouter un timestamp et encoder en base64 pour plus de sécurité
+    // Ajouter un timestamp pour traçabilité (ne change pas la vérification)
     const timestamp = Date.now()
-    const signatureWithTimestamp = `${signature}:${timestamp}`
+    const signatureWithTimestamp = `${pdfHash}:${timestamp}`
 
+    // Encoder en base64
     return Buffer.from(signatureWithTimestamp).toString('base64')
   }
 

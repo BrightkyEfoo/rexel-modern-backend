@@ -138,9 +138,12 @@ export default class ProductRepository extends BaseRepository<typeof Product> {
       maxPrice?: number
       inStock?: boolean
       metadata?: Record<string, string | number | boolean | string[]>
+      includeAllStatuses?: boolean // Pour les vues admin (ne pas filtrer par statut)
     } = {}
   ) {
     const query = Product.query()
+      // Filtrer les produits approuvés uniquement, sauf si includeAllStatuses est true (admin)
+      .if(!filters.includeAllStatuses, (q) => q.where('status', 'approved'))
       .preload('categories')
       .preload('brand')
       .preload('files')

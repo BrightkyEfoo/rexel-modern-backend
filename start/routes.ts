@@ -32,6 +32,7 @@ import { registerPublicQuoteRoutes, registerSecuredQuoteRoutes } from '../routes
 import { registerSecuredOrderRoutes } from '../routes/orders.js'
 import { registerPublicContactRoutes, registerSecuredContactRoutes } from '../routes/contact.js'
 import { registerUtilRoutes } from '../routes/utils.js'
+import { registerUserRoutes } from '../routes/users.js'
 import '../routes/favorites.js'
 import '../routes/upload.js'
 import '../routes/search.js'
@@ -66,6 +67,7 @@ registerSecuredFormationRoutes()
 registerSecuredQuoteRoutes()
 registerSecuredOrderRoutes()
 registerSecuredContactRoutes()
+registerUserRoutes()
 
 // Enregistrement des routes utilitaires
 registerUtilRoutes()

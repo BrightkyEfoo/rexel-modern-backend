@@ -176,7 +176,7 @@ export default class OrdersController {
     const user = await auth.authenticate()
 
     // Vérifier si l'utilisateur est admin
-    if (user.type !== 'admin') {
+    if (user.type !== 'admin' && user.type !== 'manager') {
       return response.forbidden({
         message: 'Accès non autorisé',
       })
@@ -406,9 +406,13 @@ export default class OrdersController {
     const user = await auth.authenticate()
     const orderNumber = params.orderNumber
 
-    const order = await Order.query()
-      .where('orderNumber', orderNumber)
-      .where('userId', user.id)
+    let orderQuery = Order.query().where('orderNumber', orderNumber)
+
+    if (user.type !== 'admin' && user.type !== 'manager') {
+      orderQuery = orderQuery.where('userId', user.id)
+    }
+
+    const order = await orderQuery
       .preload('items', (itemQuery) => {
         itemQuery.preload('product', (productQuery) => {
           productQuery.preload('brand')
@@ -445,23 +449,131 @@ export default class OrdersController {
 
   /**
    * Vérifier la signature d'une facture (Admin uniquement)
+   * Nécessite uniquement le fichier PDF et optionnellement le numéro de commande
    */
   async verifyInvoiceSignature({ request, response }: HttpContext) {
-    const { orderNumber, signature, pdfData } = request.only([
-      'orderNumber',
-      'signature',
-      'pdfData',
-    ])
+    const { pdfData, orderNumber } = request.only(['pdfData', 'orderNumber'])
 
-    if (!orderNumber || !signature) {
+    if (!pdfData) {
       return response.badRequest({
-        message: 'Numéro de commande et signature requis',
+        message: 'Le fichier PDF est requis',
       })
     }
 
     try {
-      // Récupérer la commande
-      const order = await Order.query().where('orderNumber', orderNumber).first()
+      const pdfBuffer = Buffer.from(pdfData, 'base64')
+
+      // Si le numéro de commande est fourni, vérifier directement
+      if (orderNumber) {
+        const order = await Order.query().where('orderNumber', orderNumber).first()
+
+        if (!order) {
+          return response.notFound({
+            message: 'Commande introuvable',
+          })
+        }
+
+        if (!order.invoiceSignature) {
+          return response.badRequest({
+            message: "Cette commande n'a pas de signature de facture enregistrée",
+          })
+        }
+
+        // Vérifier la signature avec le PDF fourni
+        const isValid = PDFService.verifySignature(orderNumber, pdfBuffer, order.invoiceSignature)
+
+        return response.ok({
+          data: {
+            orderNumber: order.orderNumber,
+            isValid,
+            verificationDate: new Date().toISOString(),
+            order: {
+              id: order.id,
+              orderNumber: order.orderNumber,
+              totalAmount: order.totalAmount,
+              createdAt: order.createdAt,
+              status: order.status,
+            },
+          },
+        })
+      }
+
+      // Si pas de numéro fourni, chercher la commande correspondante
+      // en testant toutes les commandes qui ont une signature
+      const ordersWithSignature = await Order.query()
+        .whereNotNull('invoiceSignature')
+        .orderBy('createdAt', 'desc')
+        .limit(1000) // Limiter la recherche aux 1000 dernières commandes
+
+      console.log('ordersWithSignature', ordersWithSignature.length)
+
+      let matchedOrder = null
+      for (const order of ordersWithSignature) {
+        if (order.invoiceSignature) {
+          const isValid = PDFService.verifySignature(
+            order.orderNumber,
+            pdfBuffer,
+            order.invoiceSignature
+          )
+          if (isValid) {
+            matchedOrder = order
+            break
+          }
+
+          console.log('isValid', isValid, order.orderNumber, order.invoiceSignature)
+        }
+      }
+
+      if (!matchedOrder) {
+        return response.ok({
+          data: {
+            orderNumber: null,
+            isValid: false,
+            verificationDate: new Date().toISOString(),
+            message: 'Aucune commande correspondante trouvée pour ce fichier PDF',
+          },
+        })
+      }
+
+      return response.ok({
+        data: {
+          orderNumber: matchedOrder.orderNumber,
+          isValid: true,
+          verificationDate: new Date().toISOString(),
+          order: {
+            id: matchedOrder.id,
+            orderNumber: matchedOrder.orderNumber,
+            totalAmount: matchedOrder.totalAmount,
+            createdAt: matchedOrder.createdAt,
+            status: matchedOrder.status,
+          },
+        },
+      })
+    } catch (error) {
+      return response.internalServerError({
+        message: 'Erreur lors de la vérification',
+        error: error.message,
+      })
+    }
+  }
+
+  /**
+   * Régénérer une facture pour comparaison visuelle (Admin uniquement)
+   */
+  async regenerateInvoice({ params, response }: HttpContext) {
+    const orderNumber = params.orderNumber
+
+    try {
+      // Récupérer la commande avec toutes ses relations
+      const order = await Order.query()
+        .where('orderNumber', orderNumber)
+        .preload('user')
+        .preload('items', (itemsQuery) => {
+          itemsQuery.preload('product', (productQuery) => {
+            productQuery.preload('brand')
+          })
+        })
+        .first()
 
       if (!order) {
         return response.notFound({
@@ -469,35 +581,21 @@ export default class OrdersController {
         })
       }
 
-      // Vérifier avec la signature stockée en base
-      const isValidStored = order.invoiceSignature === signature
+      // Régénérer le PDF
+      const { pdfBuffer, signature } = await PDFService.generateInvoicePDF(order)
 
-      // Si PDF fourni, vérifier aussi avec le contenu
-      let isValidContent = false
-      if (pdfData) {
-        const pdfBuffer = Buffer.from(pdfData, 'base64')
-        isValidContent = PDFService.verifySignature(orderNumber, pdfBuffer, signature)
-      }
+      // Définir les headers pour le téléchargement
+      response.header('Content-Type', 'application/pdf')
+      response.header(
+        'Content-Disposition',
+        `attachment; filename="facture-${orderNumber}-regeneree.pdf"`
+      )
+      response.header('X-Invoice-Signature', signature)
 
-      return response.ok({
-        data: {
-          orderNumber,
-          isValidStored,
-          isValidContent,
-          isValid: isValidStored && (pdfData ? isValidContent : true),
-          verificationDate: new Date().toISOString(),
-          order: {
-            id: order.id,
-            orderNumber: order.orderNumber,
-            totalAmount: order.totalAmount,
-            createdAt: order.createdAt,
-            status: order.status,
-          },
-        },
-      })
+      return response.send(pdfBuffer)
     } catch (error) {
       return response.internalServerError({
-        message: 'Erreur lors de la vérification',
+        message: 'Erreur lors de la régénération de la facture',
         error: error.message,
       })
     }

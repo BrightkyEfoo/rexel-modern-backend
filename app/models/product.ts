@@ -16,6 +16,9 @@ import Brand from './brand.js'
 import File from './file.js'
 import ProductMetadata from './product_metadata.js'
 import Review from './review.js'
+import User from './user.js'
+import ProductActivity from './product_activity.js'
+import { ProductStatus } from '../types/product.js'
 import app from '@adonisjs/core/services/app'
 
 export default class Product extends BaseModel {
@@ -72,6 +75,25 @@ export default class Product extends BaseModel {
   @column({ columnName: 'additional_info' })
   declare additionalInfo: Record<string, any> | null
 
+  // Champs de validation
+  @column()
+  declare status: ProductStatus
+
+  @column({ columnName: 'created_by_id' })
+  declare createdById: number | null
+
+  @column({ columnName: 'approved_by_id' })
+  declare approvedById: number | null
+
+  @column.dateTime({ columnName: 'submitted_at' })
+  declare submittedAt: DateTime | null
+
+  @column.dateTime({ columnName: 'approved_at' })
+  declare approvedAt: DateTime | null
+
+  @column({ columnName: 'rejection_reason' })
+  declare rejectionReason: string | null
+
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime
 
@@ -101,6 +123,19 @@ export default class Product extends BaseModel {
 
   @hasMany(() => Review)
   declare reviews: HasMany<typeof Review>
+
+  @hasMany(() => ProductActivity)
+  declare activities: HasMany<typeof ProductActivity>
+
+  @belongsTo(() => User, {
+    foreignKey: 'createdById',
+  })
+  declare createdBy: BelongsTo<typeof User>
+
+  @belongsTo(() => User, {
+    foreignKey: 'approvedById',
+  })
+  declare approvedBy: BelongsTo<typeof User>
 
   // Computed property pour l'image principale
   @computed()

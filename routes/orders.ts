@@ -31,6 +31,7 @@ export function registerSecuredOrderRoutes() {
       router.put('/admin/orders/:id/status', [OrdersController, 'updateStatus']) // Mettre à jour le statut (admin)
       router.post('/admin/orders/verify-signature', [OrdersController, 'verifyInvoiceSignature']) // Vérifier signature
       router.get('/admin/orders/invoice-signatures', [OrdersController, 'getInvoiceSignatures']) // Lister signatures
+      router.get('/admin/orders/:orderNumber/regenerate-invoice', [OrdersController, 'regenerateInvoice']) // Régénérer facture
       router.get('/admin/orders/issues', [OrdersController, 'getAllIssues']) // Tous les signalements (admin)
       router.put('/admin/orders/issues/:id', [OrdersController, 'updateIssue']) // Mettre à jour signalement (admin)
     })
