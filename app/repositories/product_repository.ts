@@ -1,6 +1,7 @@
 import BaseRepository from './base_repository.js'
 import Product from '../models/product.js'
 import MetadataService from '../services/metadata_service.js'
+import db from '@adonisjs/lucid/services/db'
 
 export default class ProductRepository extends BaseRepository<typeof Product> {
   constructor() {
@@ -97,7 +98,12 @@ export default class ProductRepository extends BaseRepository<typeof Product> {
     ]
 
     if (allowedSortFields.includes(sortBy)) {
-      query.orderBy(sortBy, sortOrder)
+      // Pour le tri par prix, prendre en compte le salePrice en priorité
+      if (sortBy === 'price') {
+        query.orderByRaw(`COALESCE(sale_price, price) ${sortOrder.toUpperCase()}`)
+      } else {
+        query.orderBy(sortBy, sortOrder)
+      }
     } else {
       query.orderBy('created_at', 'desc')
     }
@@ -134,6 +140,7 @@ export default class ProductRepository extends BaseRepository<typeof Product> {
       brandIds?: number[]
       isFeatured?: boolean
       isActive?: boolean
+      isOnClearance?: boolean
       minPrice?: number
       maxPrice?: number
       inStock?: boolean
@@ -190,13 +197,17 @@ export default class ProductRepository extends BaseRepository<typeof Product> {
       query.where('is_active', filters.isActive)
     }
 
-    // Filtres de prix
+    if (filters.isOnClearance !== undefined) {
+      query.where('is_on_clearance', filters.isOnClearance)
+    }
+
+    // Filtres de prix (prendre en compte le salePrice en priorité)
     if (filters.minPrice !== undefined) {
-      query.where('price', '>=', filters.minPrice)
+      query.whereRaw('COALESCE(sale_price, price) >= ?', [filters.minPrice])
     }
 
     if (filters.maxPrice !== undefined) {
-      query.where('price', '<=', filters.maxPrice)
+      query.whereRaw('COALESCE(sale_price, price) <= ?', [filters.maxPrice])
     }
 
     // Filtre de stock
@@ -224,7 +235,12 @@ export default class ProductRepository extends BaseRepository<typeof Product> {
     ]
 
     if (allowedSortFields.includes(sortBy)) {
-      query.orderBy(sortBy, sortOrder)
+      // Pour le tri par prix, prendre en compte le salePrice en priorité
+      if (sortBy === 'price') {
+        query.orderByRaw(`COALESCE(sale_price, price) ${sortOrder.toUpperCase()}`)
+      } else {
+        query.orderBy(sortBy, sortOrder)
+      }
     } else {
       query.orderBy('created_at', 'desc')
     }
@@ -289,19 +305,21 @@ export default class ProductRepository extends BaseRepository<typeof Product> {
 
   /**
    * Récupère la fourchette de prix globale (min/max)
+   * Prend en compte le salePrice en priorité
    */
   async getGlobalPriceRange(): Promise<{ min: number; max: number }> {
-    const result = await Product.query()
+    const result = await db
+      .from('products')
       .select(
-        Product.query().min('price').where('is_active', true).as('min_price'),
-        Product.query().max('price').where('is_active', true).as('max_price')
+        db.raw('MIN(COALESCE(sale_price, price)) as min_price'),
+        db.raw('MAX(COALESCE(sale_price, price)) as max_price')
       )
       .where('is_active', true)
       .first()
 
     return {
-      min: result ? Number.parseFloat(result.$extras.min_price || '0') : 0,
-      max: result ? Number.parseFloat(result.$extras.max_price || '1000') : 1000,
+      min: result ? Number.parseFloat(result.min_price || '0') : 0,
+      max: result ? Number.parseFloat(result.max_price || '1000') : 1000,
     }
   }
 
@@ -459,11 +477,11 @@ export default class ProductRepository extends BaseRepository<typeof Product> {
     }
 
     if (filters.minPrice !== undefined) {
-      query.where('price', '>=', filters.minPrice)
+      query.whereRaw('COALESCE(sale_price, price) >= ?', [filters.minPrice])
     }
 
     if (filters.maxPrice !== undefined) {
-      query.where('price', '<=', filters.maxPrice)
+      query.whereRaw('COALESCE(sale_price, price) <= ?', [filters.maxPrice])
     }
 
     if (filters.isFeatured !== undefined) {
@@ -476,6 +494,10 @@ export default class ProductRepository extends BaseRepository<typeof Product> {
 
     if (filters.inStock !== undefined) {
       query.where('in_stock', filters.inStock)
+    }
+
+    if (filters.isOnClearance !== undefined) {
+      query.where('is_on_clearance', filters.isOnClearance)
     }
 
     // Filtres de métadonnées
@@ -491,6 +513,7 @@ export default class ProductRepository extends BaseRepository<typeof Product> {
           'isFeatured',
           'isActive',
           'inStock',
+          'isOnClearance',
           'brandSlug',
           'categorySlug',
         ].includes(key) &&
@@ -529,6 +552,9 @@ export default class ProductRepository extends BaseRepository<typeof Product> {
         // Tri par popularité (featured en premier, puis par date)
         query.orderBy('is_featured', 'desc')
         query.orderBy('created_at', 'desc')
+      } else if (sortBy === 'price') {
+        // Pour le tri par prix, prendre en compte le salePrice en priorité
+        query.orderByRaw(`COALESCE(sale_price, price) ${sortOrder.toUpperCase()}`)
       } else {
         query.orderBy(sortBy, sortOrder)
       }

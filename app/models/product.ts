@@ -60,6 +60,9 @@ export default class Product extends BaseModel {
   @column({ columnName: 'is_featured' })
   declare isFeatured: boolean
 
+  @column({ columnName: 'is_on_clearance' })
+  declare isOnClearance: boolean
+
   @column({ columnName: 'is_active' })
   declare isActive: boolean
 

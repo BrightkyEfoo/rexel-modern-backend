@@ -7,6 +7,7 @@ export function registerPublicProductRoutes() {
     .group(() => {
       router.get('/products', '#controllers/products_controller.index')
       router.get('/products/featured', '#controllers/products_controller.featured')
+      router.get('/products/clearance', '#controllers/products_controller.clearance')
       router.get('/products/new', '#controllers/products_controller.getNewProducts')
       router.get('/products/filters', '#controllers/products_controller.getFilters')
       router.get('/products/global-filters', '#controllers/products_controller.getGlobalFilters')
@@ -49,6 +50,9 @@ export function registerSecuredProductRoutes() {
       // Routes de validation groupée (admin only)
       router.post('/products/bulk-approve', '#controllers/products_controller.bulkApprove')
       router.post('/products/bulk-reject', '#controllers/products_controller.bulkReject')
+      
+      // Routes de destockage (admin only)
+      router.post('/products/bulk-set-clearance', '#controllers/products_controller.bulkSetClearance')
       
       // Route pour toutes les activités (admin + manager)
       router.get('/activities', '#controllers/products_controller.allActivities')

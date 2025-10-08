@@ -1593,6 +1593,136 @@ export default class ProductsController {
   }
 
   /**
+   * Marque plusieurs produits en destockage (Admin only)
+   */
+  async bulkSetClearance({ request, response, auth }: HttpContext) {
+    try {
+      const user = await auth.authenticate()
+
+      // Vérifier que l'utilisateur est admin
+      if (user.type !== 'admin') {
+        return response.forbidden({
+          message: 'Seuls les administrateurs peuvent gérer le destockage',
+        })
+      }
+
+      const { productIds, isOnClearance } = request.only(['productIds', 'isOnClearance'])
+
+      if (!productIds || !Array.isArray(productIds) || productIds.length === 0) {
+        return response.badRequest({
+          message: 'Aucun produit sélectionné',
+        })
+      }
+
+      if (typeof isOnClearance !== 'boolean') {
+        return response.badRequest({
+          message: 'Le paramètre isOnClearance doit être un booléen',
+        })
+      }
+
+      const updatedProducts = []
+      const errors = []
+
+      for (const productId of productIds) {
+        try {
+          const product = await this.productRepository.findById(productId)
+
+          if (!product) {
+            errors.push({ productId, error: 'Produit non trouvé' })
+            continue
+          }
+
+          // Mettre à jour le statut de destockage
+          await this.productRepository.update(productId, {
+            isOnClearance: isOnClearance,
+          })
+
+          // Recharger le produit avec ses relations
+          const updatedProduct = await this.productRepository.findById(productId)
+          if (updatedProduct) {
+            await updatedProduct.load('brand')
+            await updatedProduct.load('categories')
+            updatedProducts.push(updatedProduct)
+          }
+        } catch (error) {
+          errors.push({ productId, error: error.message })
+        }
+      }
+
+      return response.ok({
+        data: {
+          updated: updatedProducts,
+          errors: errors,
+        },
+        message: `${updatedProducts.length} produit(s) ${isOnClearance ? 'ajouté(s) au' : 'retiré(s) du'} destockage${errors.length > 0 ? `, ${errors.length} erreur(s)` : ''}`,
+      })
+    } catch (error) {
+      console.error('Error bulk setting clearance:', error)
+      return response.badRequest({
+        message: 'Erreur lors de la mise à jour du destockage',
+        error: error.message,
+      })
+    }
+  }
+
+  /**
+   * Récupère les produits en destockage avec pagination
+   */
+  async clearance({ request, response }: HttpContext) {
+    try {
+      const page = request.input('page', 1)
+      const perPage = request.input('per_page', 20)
+      const sortBy = request.input('sort_by', 'created_at')
+      const sortOrder = request.input('sort_order', 'desc')
+      const search = request.input('search')
+      const brandId = request.input('brand_id')
+      const categoryId = request.input('category_id')
+      const minPrice = request.input('min_price')
+      const maxPrice = request.input('max_price')
+      const inStock = request.input('in_stock')
+
+      const filters = {
+        search,
+        brandId: brandId ? Number.parseInt(brandId) : undefined,
+        categoryId: categoryId ? Number.parseInt(categoryId) : undefined,
+        minPrice: minPrice ? Number.parseFloat(minPrice) : undefined,
+        maxPrice: maxPrice ? Number.parseFloat(maxPrice) : undefined,
+        inStock: inStock === 'true' ? true : inStock === 'false' ? false : undefined,
+        isOnClearance: true,
+        isActive: true,
+      }
+
+      const paginatedProducts = await this.productRepository.findWithPaginationAndFilters(
+        page,
+        perPage,
+        sortBy,
+        sortOrder,
+        filters
+      )
+
+      return response.ok({
+        data: paginatedProducts.all(),
+        meta: {
+          total: paginatedProducts.total,
+          per_page: paginatedProducts.perPage,
+          current_page: paginatedProducts.currentPage,
+          last_page: paginatedProducts.lastPage,
+        },
+        message: 'Clearance products retrieved successfully',
+        status: 200,
+        timestamp: new Date().toISOString(),
+      })
+    } catch (error) {
+      console.error('Error fetching clearance products:', error)
+      return response.internalServerError({
+        message: 'Error fetching clearance products',
+        status: 500,
+        timestamp: new Date().toISOString(),
+      })
+    }
+  }
+
+  /**
    * Méthode helper pour comparer deux valeurs (supporte les objets et tableaux)
    */
   private areValuesEqual(value1: any, value2: any): boolean {
@@ -1606,7 +1736,7 @@ export default class ProductsController {
     if (typeof value1 === 'object' && typeof value2 === 'object') {
       try {
         return JSON.stringify(value1) === JSON.stringify(value2)
-      } catch (e) {
+      } catch (error) {
         // Si la sérialisation échoue, considérer comme différent
         return false
       }

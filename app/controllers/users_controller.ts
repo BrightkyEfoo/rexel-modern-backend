@@ -231,6 +231,170 @@ export default class UsersController {
       })
     }
   }
+
+  /**
+   * Suspend ou réactive un utilisateur
+   * Admin only
+   */
+  async suspend({ params, request, response, auth }: HttpContext) {
+    try {
+      const user = await User.findOrFail(params.id)
+      const currentUser = await auth.authenticate()
+      const { isSuspended } = request.only(['isSuspended'])
+
+      // Empêcher la suspension de son propre compte
+      if (user.id === currentUser.id) {
+        return response.badRequest({
+          message: 'Vous ne pouvez pas suspendre votre propre compte',
+        })
+      }
+
+      // Empêcher la suspension des admins
+      if (user.type === UserType.ADMIN) {
+        return response.badRequest({
+          message: 'Vous ne pouvez pas suspendre un administrateur',
+        })
+      }
+
+      user.isSuspended = isSuspended
+      await user.save()
+
+      return response.ok({
+        data: user,
+        message: isSuspended 
+          ? 'Utilisateur suspendu avec succès' 
+          : 'Utilisateur réactivé avec succès',
+      })
+    } catch (error) {
+      if (error.code === 'E_ROW_NOT_FOUND') {
+        return response.notFound({
+          message: 'Utilisateur non trouvé',
+        })
+      }
+
+      return response.internalServerError({
+        message: 'Erreur lors de la suspension de l\'utilisateur',
+        error: error.message,
+      })
+    }
+  }
+
+  /**
+   * Suspend ou réactive plusieurs utilisateurs en masse
+   * Admin only
+   */
+  async bulkSuspend({ request, response, auth }: HttpContext) {
+    try {
+      const { userIds, isSuspended } = request.only(['userIds', 'isSuspended'])
+      const currentUser = await auth.authenticate()
+
+      if (!Array.isArray(userIds) || userIds.length === 0) {
+        return response.badRequest({
+          message: 'Aucun utilisateur sélectionné',
+        })
+      }
+
+      const updated = []
+      const errors = []
+
+      for (const userId of userIds) {
+        try {
+          const user = await User.find(userId)
+
+          if (!user) {
+            errors.push({ userId, error: 'Utilisateur non trouvé' })
+            continue
+          }
+
+          // Empêcher la suspension de son propre compte
+          if (user.id === currentUser.id) {
+            errors.push({ userId, error: 'Vous ne pouvez pas suspendre votre propre compte' })
+            continue
+          }
+
+          // Empêcher la suspension des admins
+          if (user.type === UserType.ADMIN) {
+            errors.push({ userId, error: 'Impossible de suspendre un administrateur' })
+            continue
+          }
+
+          user.isSuspended = isSuspended
+          await user.save()
+          updated.push(user)
+        } catch (error) {
+          errors.push({ userId, error: error.message })
+        }
+      }
+
+      return response.ok({
+        data: { updated, errors },
+        message: `${updated.length} utilisateur(s) ${isSuspended ? 'suspendu(s)' : 'réactivé(s)'} avec succès`,
+      })
+    } catch (error) {
+      return response.internalServerError({
+        message: 'Erreur lors de la suspension en masse',
+        error: error.message,
+      })
+    }
+  }
+
+  /**
+   * Supprime plusieurs utilisateurs en masse
+   * Admin only
+   */
+  async bulkDelete({ request, response, auth }: HttpContext) {
+    try {
+      const { userIds } = request.only(['userIds'])
+      const currentUser = await auth.authenticate()
+
+      if (!Array.isArray(userIds) || userIds.length === 0) {
+        return response.badRequest({
+          message: 'Aucun utilisateur sélectionné',
+        })
+      }
+
+      const deleted = []
+      const errors = []
+
+      for (const userId of userIds) {
+        try {
+          const user = await User.find(userId)
+
+          if (!user) {
+            errors.push({ userId, error: 'Utilisateur non trouvé' })
+            continue
+          }
+
+          // Empêcher la suppression de son propre compte
+          if (user.id === currentUser.id) {
+            errors.push({ userId, error: 'Vous ne pouvez pas supprimer votre propre compte' })
+            continue
+          }
+
+          // Empêcher la suppression des admins
+          if (user.type === UserType.ADMIN) {
+            errors.push({ userId, error: 'Impossible de supprimer un administrateur' })
+            continue
+          }
+
+          await user.delete()
+          deleted.push(userId)
+        } catch (error) {
+          errors.push({ userId, error: error.message })
+        }
+      }
+
+      return response.ok({
+        data: { deleted, errors },
+        message: `${deleted.length} utilisateur(s) supprimé(s) avec succès`,
+      })
+    } catch (error) {
+      return response.internalServerError({
+        message: 'Erreur lors de la suppression en masse',
+        error: error.message,
+      })
+    }
+  }
 }
 
 

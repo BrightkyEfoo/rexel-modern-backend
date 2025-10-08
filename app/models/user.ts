@@ -42,6 +42,9 @@ export default class User extends compose(BaseModel, AuthFinder) {
   @column({ columnName: 'is_verified' })
   declare isVerified: boolean
 
+  @column({ columnName: 'is_suspended' })
+  declare isSuspended: boolean
+
   @column({ serializeAs: null, columnName: 'verification_token' })
   declare verificationToken: string | null
 
