@@ -102,6 +102,7 @@ export default class CategoryRepository extends BaseRepository<typeof Category> 
       search?: string
       parentId?: number | null
       isActive?: boolean
+      limit?: number
     } = {}
   ) {
     const query = Category.query()
@@ -111,6 +112,10 @@ export default class CategoryRepository extends BaseRepository<typeof Category> 
       .preload('products')
       .preload('parent')
       .preload('files')
+
+    if (filters.limit) {
+      query.limit(filters.limit)
+    }
 
     // Application des filtres
     if (filters.search) {

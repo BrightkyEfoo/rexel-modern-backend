@@ -21,11 +21,13 @@ export default class CategoriesController {
       const search = request.input('search')
       const parentId = request.input('parent_id')
       const isActive = request.input('is_active')
+      const limit = request.input('limit')
 
       const filters = {
         search,
         parentId: parentId ? Number.parseInt(parentId) : undefined,
         isActive: isActive === 'true' ? true : isActive === 'false' ? false : undefined,
+        limit,
       }
 
       const paginatedCategories = await this.categoryRepository.findWithPaginationAndFilters(
@@ -311,13 +313,14 @@ export default class CategoriesController {
       const perPage = request.input('per_page', 20)
       const sortBy = request.input('sort_by', 'sort_order')
       const sortOrder = request.input('sort_order', 'asc')
+      const limit = request.input('limit')
 
       const paginatedCategories = await this.categoryRepository.findWithPaginationAndFilters(
         page,
         perPage,
         sortBy,
         sortOrder,
-        { parentId: null, isActive: true }
+        { parentId: null, isActive: true, limit }
       )
 
       return response.ok({
@@ -350,13 +353,13 @@ export default class CategoriesController {
       const perPage = request.input('per_page', 20)
       const sortBy = request.input('sort_by', 'sort_order')
       const sortOrder = request.input('sort_order', 'asc')
-
+      const limit = request.input('limit')
       const paginatedCategories = await this.categoryRepository.findWithPaginationAndFilters(
         page,
         perPage,
         sortBy,
         sortOrder,
-        { parentId: Number.parseInt(params.parentId), isActive: true }
+        { parentId: Number.parseInt(params.parentId), isActive: true, limit }
       )
 
       return response.ok({
