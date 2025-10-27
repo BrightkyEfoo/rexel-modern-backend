@@ -244,16 +244,18 @@ export default class BrandsController {
       const perPage = request.input('per_page', 20)
       const sortBy = request.input('sort_by', 'name')
       const sortOrder = request.input('sort_order', 'asc')
+      const limit = request.input('limit', 10)
 
       const paginatedBrands = await this.brandRepository.findFeatured(
         page,
         perPage,
         sortBy,
-        sortOrder
+        sortOrder,
+        limit
       )
 
       return response.ok({
-        data: paginatedBrands.all(),
+        data: paginatedBrands.all().slice(0, limit),
         meta: {
           total: paginatedBrands.total,
           per_page: paginatedBrands.perPage,

@@ -58,7 +58,8 @@ export default class BrandRepository extends BaseRepository<typeof Brand> {
     page: number = 1,
     perPage: number = 20,
     sortBy: string = 'name',
-    sortOrder: 'asc' | 'desc' = 'asc'
+    sortOrder: 'asc' | 'desc' = 'asc',
+    limit: number = 10
   ) {
     const query = Brand.query().where('is_active', true).preload('products').preload('files')
 
@@ -70,6 +71,8 @@ export default class BrandRepository extends BaseRepository<typeof Brand> {
     } else {
       query.orderBy('name', 'asc')
     }
+
+    query.limit(limit)
 
     return query.paginate(page, perPage)
   }

@@ -4,6 +4,7 @@ import Service from '#models/service'
 export default class extends BaseSeeder {
   async run() {
     // Services principaux (non modifiables par l'admin)
+
     const services = [
       {
         name: 'Conseil et Expertise',

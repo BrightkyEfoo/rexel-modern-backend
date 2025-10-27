@@ -2,9 +2,11 @@ import { BaseSeeder } from '@adonisjs/lucid/seeders'
 import Category from '#models/category'
 import Product from '#models/product'
 import SlugService from '#services/slug_service'
+import env from '#start/env'
 
 export default class CategorySeeder extends BaseSeeder {
   async run() {
+    if (env.get('NODE_ENV') !== 'development') return
     console.log('🌱 Création des catégories et sous-catégories...')
 
     // Catégories principales avec leurs sous-catégories

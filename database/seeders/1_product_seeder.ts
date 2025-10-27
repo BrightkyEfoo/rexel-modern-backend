@@ -3,9 +3,11 @@ import Product from '#models/product'
 import Brand from '#models/brand'
 import SlugService from '#services/slug_service'
 import MetadataService from '#services/metadata_service'
+import env from '#start/env'
 
 export default class ProductSeeder extends BaseSeeder {
   async run() {
+    if (env.get('NODE_ENV') !== 'development') return
     console.log("🌱 Création de 3 produits d'exemple...")
 
     // Récupérer les marques existantes
