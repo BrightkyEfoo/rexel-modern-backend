@@ -1,11 +1,10 @@
-import { BaseSeeder } from '@adonisjs/lucid/seeders'
 import Brand from '#models/brand'
 import SlugService from '#services/slug_service'
-import env from '#start/env'
+import { BaseSeeder } from '@adonisjs/lucid/seeders'
 
 export default class BrandSeeder extends BaseSeeder {
   async run() {
-    if (env.get('NODE_ENV') !== 'development') return
+    // if (env.get('NODE_ENV') !== 'development') return
     // Données des marques depuis db.json
     const brandsData = [
       {
