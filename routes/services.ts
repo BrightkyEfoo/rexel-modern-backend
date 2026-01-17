@@ -1,13 +1,12 @@
 import router from '@adonisjs/core/services/router'
-import { middleware } from '#start/kernel'
 
 const ServicesController = () => import('#controllers/services_controller')
 
-// Routes publiques pour les services
+// Routes publiques pour les services (lecture seule)
 export function registerPublicServiceRoutes() {
   router.group(() => {
-    // Routes pour les services
     router.get('/', [ServicesController, 'index'])
+    router.get('/grouped', [ServicesController, 'grouped'])
     router.get('/primary', [ServicesController, 'primary'])
     router.get('/complementary', [ServicesController, 'complementary'])
     router.get('/category/:category', [ServicesController, 'byCategory'])
@@ -15,12 +14,8 @@ export function registerPublicServiceRoutes() {
   }).prefix('/api/v1/opened/services')
 }
 
-// Routes sécurisées pour l'admin
+// Les services sont fixes, pas de routes admin pour créer/modifier/supprimer
 export function registerSecuredServiceRoutes() {
-  router.group(() => {
-    router.get('/', [ServicesController, 'index'])
-    router.post('/', [ServicesController, 'store'])
-    router.put('/:id', [ServicesController, 'update'])
-    router.delete('/:id', [ServicesController, 'destroy'])
-  }).prefix('/api/v1/admin/services').use(middleware.auth())
+  // Aucune route sécurisée pour les services
+  // Les services sont gérés uniquement via le seeder
 }

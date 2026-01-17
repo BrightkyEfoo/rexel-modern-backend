@@ -22,14 +22,16 @@ export default class Service extends BaseModel {
 
   @column()
   declare category:
-    | 'livraison'
-    | 'installation'
-    | 'formation'
-    | 'conseil'
-    | 'maintenance'
-    | 'audit'
-    | 'smart-building'
-    | 'eclairage'
+    | 'solutions-techniques'
+    | 'rh-formation'
+    | 'accompagnement-conseil'
+    | 'energie-renouvelable'
+
+  @column()
+  declare groupName: string | null
+
+  @column()
+  declare groupOrder: number
 
   @column()
   declare status: 'active' | 'inactive' | 'coming_soon'
