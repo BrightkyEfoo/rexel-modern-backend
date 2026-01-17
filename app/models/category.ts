@@ -130,19 +130,28 @@ export default class Category extends BaseModel {
   }
 
   /**
-   * Récupère tous les descendants de la catégorie (récursif)
+   * Récupère tous les descendants de la catégorie (récursif avec limite de profondeur)
+   * @param maxDepth - Profondeur maximum (défaut: 5 pour éviter les fuites mémoire)
+   * @param currentDepth - Profondeur actuelle (usage interne)
    */
-  async getDescendants(): Promise<Category[]> {
+  async getDescendants(maxDepth: number = 5, currentDepth: number = 0): Promise<Category[]> {
+    // Protection contre la récursion infinie
+    if (currentDepth >= maxDepth) {
+      return []
+    }
+
     const descendants: Category[] = []
 
     const children = await Category.query()
       .where('parentId', this.id)
       .where('isActive', true)
       .orderBy('sortOrder', 'asc')
+      .limit(100) // Limite pour éviter de charger trop de données
 
     for (const child of children) {
       descendants.push(child)
-      const childDescendants = await child.getDescendants()
+      // Passer la profondeur incrémentée
+      const childDescendants = await child.getDescendants(maxDepth, currentDepth + 1)
       descendants.push(...childDescendants)
     }
 

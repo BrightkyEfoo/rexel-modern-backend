@@ -118,6 +118,9 @@ services:
       LOG_LEVEL: info
       APP_KEY: ${APP_KEY}
 
+      # Memory Management - Limite la heap Node.js à 512MB
+      NODE_OPTIONS: --max-old-space-size=512
+
       # Database
       DB_CONNECTION: pg
       DB_HOST: db

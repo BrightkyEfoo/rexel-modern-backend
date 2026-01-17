@@ -10,6 +10,7 @@ export default class ProductRepository extends BaseRepository<typeof Product> {
 
   /**
    * Récupère les produits avec relations
+   * Note: Pour les listes, préférer les méthodes avec pagination
    */
   async findAllWithRelations(): Promise<Product[]> {
     return Product.query()
@@ -17,6 +18,7 @@ export default class ProductRepository extends BaseRepository<typeof Product> {
       .preload('brand')
       .preload('files')
       .preload('metadata')
+      .limit(100) // Limite de sécurité pour éviter les fuites mémoire
   }
 
   /**
@@ -34,8 +36,9 @@ export default class ProductRepository extends BaseRepository<typeof Product> {
 
   /**
    * Récupère les produits par catégorie
+   * Note: Pour les listes, préférer findWithPaginationAndFilters avec categoryId
    */
-  async findByCategory(categoryId: number): Promise<Product[]> {
+  async findByCategory(categoryId: number, limit: number = 100): Promise<Product[]> {
     return Product.query()
       .whereHas('categories', (query) => {
         query.where('categories.id', categoryId)
@@ -44,23 +47,27 @@ export default class ProductRepository extends BaseRepository<typeof Product> {
       .preload('brand')
       .preload('files')
       .preload('metadata')
+      .limit(limit)
   }
 
   /**
    * Récupère les produits par marque
+   * Note: Pour les listes, préférer findWithPaginationAndFilters avec brandId
    */
-  async findByBrand(brandId: number): Promise<Product[]> {
+  async findByBrand(brandId: number, limit: number = 100): Promise<Product[]> {
     return Product.query()
       .where('brand_id', brandId)
       .preload('categories')
       .preload('files')
       .preload('metadata')
+      .limit(limit)
   }
 
   /**
    * Recherche de produits
+   * Note: Pour les recherches paginées, préférer findWithPaginationAndFilters avec search
    */
-  async search(query: string): Promise<Product[]> {
+  async search(query: string, limit: number = 100): Promise<Product[]> {
     return Product.query()
       .where('name', 'ilike', `%${query}%`)
       .orWhere('description', 'ilike', `%${query}%`)
@@ -68,6 +75,7 @@ export default class ProductRepository extends BaseRepository<typeof Product> {
       .preload('brand')
       .preload('files')
       .preload('metadata')
+      .limit(limit)
   }
 
   /**

@@ -13,6 +13,14 @@ const dbConfig = defineConfig({
         password: env.get('DB_PASSWORD'),
         database: env.get('DB_DATABASE'),
       },
+      // Configuration du pool de connexions pour éviter les fuites de mémoire
+      pool: {
+        min: 2,                    // Nombre minimum de connexions
+        max: 10,                   // Nombre maximum de connexions
+        acquireTimeoutMillis: 30000, // Timeout pour acquérir une connexion
+        idleTimeoutMillis: 10000,    // Timeout pour les connexions inactives
+        reapIntervalMillis: 1000,    // Intervalle de nettoyage des connexions
+      },
       migrations: {
         naturalSort: true,
         paths: ['database/migrations'],

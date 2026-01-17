@@ -89,6 +89,7 @@ export default class TypesenseSyncService {
   /**
    * Resynchronise tous les produits d'une catégorie
    * Utile quand une catégorie est modifiée
+   * Utilise le batching pour éviter la surcharge mémoire
    */
   async resyncCategoryProducts(categoryId: number) {
     try {
@@ -97,11 +98,15 @@ export default class TypesenseSyncService {
           query.where('categories.id', categoryId)
         })
         .select('id')
+        .limit(500) // Limite pour éviter les problèmes de mémoire
 
       console.log(`🔄 Resynchronisation ${products.length} produits de la catégorie ${categoryId}`)
 
-      for (const product of products) {
-        await this.syncProduct(product.id, 'update')
+      // Traitement par batch de 10 pour éviter la surcharge
+      const batchSize = 10
+      for (let i = 0; i < products.length; i += batchSize) {
+        const batch = products.slice(i, i + batchSize)
+        await Promise.all(batch.map(product => this.syncProduct(product.id, 'update')))
       }
 
       console.log(`✅ Produits de la catégorie ${categoryId} resynchronisés`)
@@ -113,15 +118,22 @@ export default class TypesenseSyncService {
   /**
    * Resynchronise tous les produits d'une marque
    * Utile quand une marque est modifiée
+   * Utilise le batching pour éviter la surcharge mémoire
    */
   async resyncBrandProducts(brandId: number) {
     try {
-      const products = await Product.query().where('brand_id', brandId).select('id')
+      const products = await Product.query()
+        .where('brand_id', brandId)
+        .select('id')
+        .limit(500) // Limite pour éviter les problèmes de mémoire
 
       console.log(`🔄 Resynchronisation ${products.length} produits de la marque ${brandId}`)
 
-      for (const product of products) {
-        await this.syncProduct(product.id, 'update')
+      // Traitement par batch de 10 pour éviter la surcharge
+      const batchSize = 10
+      for (let i = 0; i < products.length; i += batchSize) {
+        const batch = products.slice(i, i + batchSize)
+        await Promise.all(batch.map(product => this.syncProduct(product.id, 'update')))
       }
 
       console.log(`✅ Produits de la marque ${brandId} resynchronisés`)
