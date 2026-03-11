@@ -12,7 +12,7 @@ export type OrderStatus =
   | 'shipped'
   | 'delivered'
   | 'cancelled'
-export type PaymentMethod = 'credit_card' | 'bank_transfer' | 'check' | 'store_payment'
+export type PaymentMethod = 'credit_card' | 'orange_money' | 'mtn_mobile_money' | 'paypal' | 'store_payment'
 export type PaymentStatus = 'pending' | 'paid' | 'failed' | 'refunded'
 export type DeliveryMethod = 'delivery' | 'pickup'
 

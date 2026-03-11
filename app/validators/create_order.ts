@@ -9,7 +9,7 @@ export const createOrderValidator = vine.compile(
     pickupPointId: vine.string().optional(),
     billingAddressId: vine.string().optional(),
     deliveryMethod: vine.enum(['delivery', 'pickup']),
-    paymentMethod: vine.enum(['credit_card', 'bank_transfer', 'check', 'store_payment']),
+    paymentMethod: vine.enum(['credit_card', 'orange_money', 'mtn_mobile_money', 'paypal', 'store_payment']),
     notes: vine.string().optional(),
     promoCode: vine.string().optional(),
     totals: vine.object({

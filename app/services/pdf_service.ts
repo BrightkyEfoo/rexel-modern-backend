@@ -438,11 +438,13 @@ export class PDFService {
                     ${
                       order.paymentMethod === 'credit_card'
                         ? 'Carte bancaire'
-                        : order.paymentMethod === 'bank_transfer'
-                          ? 'Virement bancaire'
-                          : order.paymentMethod === 'check'
-                            ? 'Chèque'
-                            : 'Paiement en magasin'
+                        : order.paymentMethod === 'orange_money'
+                          ? 'Orange Money'
+                          : order.paymentMethod === 'mtn_mobile_money'
+                            ? 'MTN Mobile Money'
+                            : order.paymentMethod === 'paypal'
+                              ? 'PayPal'
+                              : 'Paiement en magasin'
                     }
                 </div>
                 <div class="info-item"><strong>Statut:</strong> ${order.status}</div>
