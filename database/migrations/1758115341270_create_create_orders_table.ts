@@ -25,7 +25,13 @@ export default class extends BaseSchema {
 
       // Informations de paiement
       table
-        .enum('payment_method', ['credit_card', 'bank_transfer', 'check', 'store_payment'])
+        .enum('payment_method', [
+          'credit_card',
+          'orange_money',
+          'mtn_mobile_money',
+          'paypal',
+          'store_payment',
+        ])
         .notNullable()
       table.enum('payment_status', ['pending', 'paid', 'failed', 'refunded']).defaultTo('pending')
 
